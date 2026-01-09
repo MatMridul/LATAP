@@ -1,0 +1,92 @@
+.app {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.header {
+  background: #1f2937;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header nav button {
+  background: none;
+  border: 1px solid #374151;
+  color: white;
+  padding: 0.5rem 1rem;
+  margin: 0 0.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.header nav button.active {
+  background: #3b82f6;
+}
+
+.main {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.login-form {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.login-form button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.alumni-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.alumni-card, .event-card, .job-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  background: white;
+}
+
+.alumni-card h3, .event-card h3, .job-card h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+}
+
+.alumni-card p, .event-card p, .job-card p {
+  margin: 0.25rem 0;
+  color: #6b7280;
+}
+
+.job-card a {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.25rem;
+}

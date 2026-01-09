@@ -1,0 +1,20 @@
+{
+  "name": "alumni-connect-backend",
+  "version": "1.0.0",
+  "description": "Alumni Connect Platform Backend - Latest 2025 Stack",
+  "main": "demo-server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "start": "node demo-server.js",
+    "dev": "node --watch demo-server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}

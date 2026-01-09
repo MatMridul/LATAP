@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alumni Connect - Enterprise Platform Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .demo-section {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .demo-section h2 {
+            color: #1e40af;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .feature-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-card h3 {
+            color: #1e40af;
+            margin-bottom: 0.75rem;
+            font-size: 1.125rem;
+        }
+        
+        .feature-card p {
+            color: #64748b;
+            line-height: 1.6;
+        }
+        
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        
+        .tech-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .pricing-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        
+        .pricing-card.featured {
+            border-color: #3b82f6;
+            transform: scale(1.05);
+        }
+        
+        .pricing-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pricing-card .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin: 1rem 0;
+        }
+        
+        .pricing-card .price span {
+            font-size: 1rem;
+            color: #64748b;
+        }
+        
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            margin: 1.5rem 0;
+        }
+        
+        .pricing-features li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .pricing-features li:before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        
+        .cta-button {
+            background: #3b82f6;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .cta-button:hover {
+            background: #2563eb;
+        }
+        
+        .demo-data {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .demo-data h4 {
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎓 Alumni Connect</h1>
+        <p>Enterprise-Grade Alumni Networking Platform</p>
+    </div>
+    
+    <div class="container">
+        <div class="demo-section">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                Platform Status: Demo Ready
+            </div>
+            <h2>🚀 Platform Overview</h2>
+            <p>Alumni Connect is a professional, multi-tenant SaaS platform designed for institutions to manage and engage their alumni networks. Built with enterprise-grade architecture and security.</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🏢 Multi-Tenant Architecture</h3>
+                    <p>Each institution gets their own branded instance with complete data isolation and custom domain support.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>👥 Alumni Directory</h3>
+                    <p>Comprehensive profiles with advanced search, filtering by graduation year, department, location, and industry.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📅 Event Management</h3>
+                    <p>Create and manage alumni events with registration tracking, virtual event support, and automated reminders.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>💼 Job Board</h3>
+                    <p>Alumni can post and discover career opportunities with advanced filtering and application tracking.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>💬 Messaging System</h3>
+                    <p>Secure direct messaging between alumni with read receipts and conversation history.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Analytics Dashboard</h3>
+                    <p>Comprehensive engagement metrics and ROI tracking for institutional administrators.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🛠️ Enterprise Technology Stack</h2>
+            <p>Built with industry-standard technologies for scalability, security, and performance.</p>
+            
+            <div class="tech-stack">
+                <span class="tech-badge">Node.js + Express</span>
+                <span class="tech-badge">PostgreSQL</span>
+                <span class="tech-badge">Redis</span>
+                <span class="tech-badge">React + TypeScript</span>
+                <span class="tech-badge">Docker</span>
+                <span class="tech-badge">AWS Infrastructure</span>
+                <span class="tech-badge">JWT Authentication</span>
+                <span class="tech-badge">Rate Limiting</span>
+                <span class="tech-badge">Input Validation</span>
+                <span class="tech-badge">Caching Layer</span>
+            </div>
+            
+            <div class="demo-data">
+                <h4>🔒 Security Features</h4>
+                <p><strong>Helmet.js:</strong> Security headers, XSS protection<br>
+                <strong>Rate Limiting:</strong> 100 requests/15min, 5 auth attempts<br>
+                <strong>Input Validation:</strong> Express-validator for all inputs<br>
+                <strong>JWT Blacklisting:</strong> Proper token revocation<br>
+                <strong>bcrypt:</strong> Password hashing with 12 rounds</p>
+            </div>
+            
+            <div class="demo-data">
+                <h4>⚡ Performance Features</h4>
+                <p><strong>Redis Caching:</strong> Query results, user sessions<br>
+                <strong>Connection Pooling:</strong> Optimized database connections<br>
+                <strong>Pagination:</strong> Efficient large dataset handling<br>
+                <strong>Compression:</strong> Gzip response compression<br>
+                <strong>Health Checks:</strong> Service monitoring endpoints</p>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>💰 Licensing Model</h2>
+            <p>Flexible subscription tiers designed to scale with institutional needs.</p>
+            
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Basic</h3>
+                    <div class="price">$299<span>/month</span></div>
+                    <ul class="pricing-features">
+                        <li>Up to 1,000 alumni</li>
+                        <li>Basic directory & messaging</li>
+                        <li>Event management</li>
+                        <li>Email support</li>
+                        <li>Custom subdomain</li>
+                    </ul>
+                    <a href="#" class="cta-button">Get Started</a>
+                </div>
+                
+                <div class="pricing-card featured">
+                    <h3>Professional</h3>
+                    <div class="price">$599<span>/month</span></div>
+                    <ul class="pricing-features">
+                        <li>Up to 5,000 alumni</li>
+                        <li>Job board functionality</li>
+                        <li>Advanced search & filtering</li>
+                        <li>Custom branding & colors</li>
+                        <li>Priority support</li>
+                        <li>Analytics dashboard</li>
+                    </ul>
+                    <a href="#" class="cta-button">Most Popular</a>
+                </div>
+                
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">$1,299<span>/month</span></div>
+                    <ul class="pricing-features">
+                        <li>Unlimited alumni</li>
+                        <li>Custom domain support</li>
+                        <li>API access</li>
+                        <li>SSO integration</li>
+                        <li>Dedicated account manager</li>
+                        <li>Custom features</li>
+                    </ul>
+                    <a href="#" class="cta-button">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>📋 Demo Data</h2>
+            <p>The platform includes sample data from Stanford University to demonstrate functionality.</p>
+            
+            <div class="demo-data">
+                <h4>👤 Sample Users</h4>
+                <p><strong>Admin:</strong> admin@stanford.edu (password: password)<br>
+                <strong>Alumni:</strong> john.doe@gmail.com (Google Engineer)<br>
+                <strong>Alumni:</strong> jane.smith@startup.com (CTO)<br>
+                <strong>Alumni:</strong> mike.wilson@consulting.com (McKinsey Principal)</p>
+            </div>
+            
+            <div class="demo-data">
+                <h4>📅 Sample Events</h4>
+                <p>• Annual Alumni Reunion - December 15, 2024<br>
+                • Tech Career Panel - Virtual Event<br>
+                • Entrepreneurship Workshop - January 10, 2025</p>
+            </div>
+            
+            <div class="demo-data">
+                <h4>💼 Sample Jobs</h4>
+                <p>• Senior Software Engineer at Google ($180K-$250K)<br>
+                • Full Stack Developer at TechStartup Inc ($120K-$160K + equity)<br>
+                • Strategy Consultant at McKinsey & Company ($150K-$200K)</p>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2>🎯 Next Steps</h2>
+            <p>Ready to see Alumni Connect in action? Here's how to proceed:</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>1. Technical Demo</h3>
+                    <p>Schedule a live demonstration of the platform with sample data and full functionality.</p>
+                    <a href="#" class="cta-button" style="margin-top: 1rem;">Schedule Demo</a>
+                </div>
+                <div class="feature-card">
+                    <h3>2. Pilot Program</h3>
+                    <p>Start with a 3-month pilot program to test the platform with your alumni network.</p>
+                    <a href="#" class="cta-button" style="margin-top: 1rem;">Start Pilot</a>
+                </div>
+                <div class="feature-card">
+                    <h3>3. Custom Development</h3>
+                    <p>Discuss custom features and integrations specific to your institutional needs.</p>
+                    <a href="#" class="cta-button" style="margin-top: 1rem;">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Simple demo interactions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers for demo buttons
+            document.querySelectorAll('.cta-button').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    alert('Demo functionality - In a real deployment, this would connect to the full platform!');
+                });
+            });
+            
+            // Simulate real-time status updates
+            setInterval(() => {
+                const statusDot = document.querySelector('.status-dot');
+                statusDot.style.animation = 'none';
+                setTimeout(() => {
+                    statusDot.style.animation = 'pulse 2s infinite';
+                }, 100);
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
