@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '../contexts/AuthContext'
+import ProtectedRoute from '../components/ProtectedRoute'
 
 interface VerificationMethod {
   id: string
@@ -43,7 +45,16 @@ const verificationMethods: VerificationMethod[] = [
 ]
 
 export default function Verification() {
+  return (
+    <ProtectedRoute>
+      <VerificationContent />
+    </ProtectedRoute>
+  )
+}
+
+function VerificationContent() {
   const router = useRouter()
+  const { user, logout } = useAuth()
   const [selectedMethod, setSelectedMethod] = useState<string>('')
   const [isAnimated, setIsAnimated] = useState(false)
 
@@ -129,7 +140,7 @@ export default function Verification() {
               Choose Verification Method
             </h1>
             <p className="text-lg text-subtle" style={{ maxWidth: '500px', margin: '0 auto' }}>
-              Select how you'd like to verify your credentials. Higher verification levels 
+              Hello {user?.firstName}, select how you'd like to verify your credentials. Higher verification levels 
               unlock more platform features and increase your credibility score.
             </p>
           </div>

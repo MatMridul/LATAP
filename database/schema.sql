@@ -87,3 +87,40 @@ CREATE INDEX idx_events_institution ON events(institution_id);
 CREATE INDEX idx_jobs_institution ON jobs(institution_id);
 CREATE INDEX idx_messages_recipient ON messages(recipient_id);
 CREATE INDEX idx_users_graduation_year ON users(graduation_year);
+
+-- Verification system tables
+CREATE TABLE verification_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    institution_id VARCHAR(100) NOT NULL,
+    claimed_name VARCHAR(255) NOT NULL,
+    claimed_institution VARCHAR(255) NOT NULL,
+    claimed_program VARCHAR(255) NOT NULL,
+    claimed_start_year INTEGER NOT NULL,
+    claimed_end_year INTEGER NOT NULL,
+    document_path VARCHAR(500) NOT NULL,
+    document_hash VARCHAR(64) UNIQUE NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE verification_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    verification_request_id UUID REFERENCES verification_requests(id) ON DELETE CASCADE,
+    attempt_number INTEGER NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    decision VARCHAR(20),
+    failure_reason TEXT,
+    ocr_text TEXT,
+    extracted_data JSONB,
+    matching_results JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Indexes for verification system
+CREATE INDEX idx_verification_requests_user ON verification_requests(user_id);
+CREATE INDEX idx_verification_requests_status ON verification_requests(status);
+CREATE INDEX idx_verification_requests_hash ON verification_requests(document_hash);
+CREATE INDEX idx_verification_attempts_request ON verification_attempts(verification_request_id);

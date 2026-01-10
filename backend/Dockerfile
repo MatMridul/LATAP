@@ -25,7 +25,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
 
 # Production runtime stage
 FROM base AS runner
@@ -36,12 +35,11 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
 # Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app ./
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --chown=nodejs:nodejs package*.json ./
 
 USER nodejs
 EXPOSE 3001
 ENV PORT 3001
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "server.js"]

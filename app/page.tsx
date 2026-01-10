@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion'
+import { useAuth } from './contexts/AuthContext'
 
 // Premium animation variants
 const containerVariants = {
@@ -81,6 +82,7 @@ const TypewriterText = ({ text, delay = 0 }) => {
 };
 
 export default function Home() {
+  const { user, logout } = useAuth()
   const [isLoaded, setIsLoaded] = useState(false)
   const { scrollY } = useScroll()
   const y1 = useTransform(scrollY, [0, 300], [0, -50])
@@ -129,9 +131,25 @@ export default function Home() {
             <Link href="/about" className="btn btn-ghost btn-sm">
               About Platform
             </Link>
-            <Link href="/signup" className="btn btn-primary btn-sm">
-              Begin Verification
-            </Link>
+            {user ? (
+              <>
+                <Link href="/dashboard" className="btn btn-ghost btn-sm">
+                  Dashboard
+                </Link>
+                <button onClick={logout} className="btn btn-primary btn-sm">
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="btn btn-ghost btn-sm">
+                  Sign In
+                </Link>
+                <Link href="/signup" className="btn btn-primary btn-sm">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -231,9 +249,15 @@ export default function Home() {
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
               >
-                <Link href="/signup" className="btn btn-primary btn-lg">
-                  Start Verification Process
-                </Link>
+                {user ? (
+                  <Link href="/dashboard" className="btn btn-primary btn-lg">
+                    Go to Dashboard
+                  </Link>
+                ) : (
+                  <Link href="/signup" className="btn btn-primary btn-lg">
+                    Sign Up
+                  </Link>
+                )}
               </motion.div>
               <motion.div
                 variants={magneticVariants}
@@ -241,9 +265,11 @@ export default function Home() {
                 whileHover="hover"
                 whileTap={{ scale: 0.95 }}
               >
-                <Link href="/about" className="btn btn-secondary btn-lg">
-                  Platform Overview
-                </Link>
+                {!user && (
+                  <Link href="/login" className="btn btn-secondary btn-lg">
+                    Login
+                  </Link>
+                )}
               </motion.div>
             </motion.div>
 

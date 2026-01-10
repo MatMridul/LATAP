@@ -4,79 +4,28 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../contexts/AuthContext'
+import ProtectedRoute from '../components/ProtectedRoute'
 
 export default function Dashboard() {
-  const router = useRouter()
-  const [userData, setUserData] = useState<any>(null)
+  const { user, logout } = useAuth()
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem('userData')
-    if (!stored) {
-      const demoUser = {
-        name: 'Demo User',
-        email: 'demo@example.com',
-        role: 'student',
-        institution: 'Demo University',
-        verificationStatus: 'unverified',
-        credibilityScore: 40,
-        verificationMethod: null,
-        verificationDate: null
-      }
-      localStorage.setItem('userData', JSON.stringify(demoUser))
-      setUserData(demoUser)
-    } else {
-      setUserData(JSON.parse(stored))
-    }
     setIsLoaded(true)
   }, [])
 
-  const getVerificationBadge = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return (
-          <div className="status-badge status-verified">
-            <div style={{ width: '6px', height: '6px', background: 'var(--success-500)', borderRadius: '50%' }}></div>
-            Verified
-          </div>
-        )
-      case 'pending':
-        return (
-          <div className="status-badge status-pending">
-            <div className="animate-pulse" style={{ width: '6px', height: '6px', background: 'var(--warning-500)', borderRadius: '50%' }}></div>
-            Pending Review
-          </div>
-        )
-      default:
-        return (
-          <div className="status-badge status-unverified">
-            <div style={{ width: '6px', height: '6px', background: 'var(--text-muted)', borderRadius: '50%' }}></div>
-            Unverified
-          </div>
-        )
-    }
-  }
+  if (!isLoaded) return null
 
-  const getCredibilityColor = (score: number) => {
-    if (score >= 80) return 'var(--success-500)'
-    if (score >= 60) return 'var(--warning-500)'
-    return 'var(--error-500)'
-  }
+  return (
+    <ProtectedRoute>
+      <DashboardContent user={user} logout={logout} />
+    </ProtectedRoute>
+  )
+}
 
-  if (!userData || !isLoaded) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: 'var(--surface-50)'
-      }}>
-        <div className="animate-pulse">Loading dashboard...</div>
-      </div>
-    )
-  }
+function DashboardContent({ user, logout }: { user: any, logout: () => void }) {
+  const router = useRouter()
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -103,14 +52,14 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
-      {/* Elite Navigation */}
+      {/* Navigation */}
       <nav className="nav-primary">
         <div className="nav-container container">
           <Link href="/" className="nav-brand">
             <div className="nav-logo">L</div>
             <div>
               <div className="nav-title">LATAP</div>
-              <div className="nav-subtitle">Professional Dashboard</div>
+              <div className="nav-subtitle">Dashboard</div>
             </div>
           </Link>
           <div className="nav-actions">
@@ -118,10 +67,7 @@ export default function Dashboard() {
               Verification
             </Link>
             <button 
-              onClick={() => {
-                localStorage.clear()
-                router.push('/')
-              }}
+              onClick={logout}
               className="btn btn-ghost btn-sm"
             >
               Sign Out
@@ -140,7 +86,7 @@ export default function Dashboard() {
           {/* Welcome Header */}
           <motion.div variants={itemVariants} style={{ marginBottom: '3rem' }}>
             <h1 className="text-3xl font-bold text-primary" style={{ marginBottom: '0.5rem' }}>
-              Welcome back, {userData.name}
+              Welcome back, {user?.firstName} {user?.lastName}
             </h1>
             <p className="text-lg text-secondary">
               Manage your professional profile and verification status
@@ -161,14 +107,16 @@ export default function Dashboard() {
               <div className="card-body">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <h3 className="font-medium text-secondary">Verification Status</h3>
-                  {getVerificationBadge(userData.verificationStatus)}
+                  <div className="status-badge status-unverified">
+                    <div style={{ width: '6px', height: '6px', background: 'var(--text-muted)', borderRadius: '50%' }}></div>
+                    Unverified
+                  </div>
                 </div>
                 <div className="text-2xl font-semibold text-primary">
-                  {userData.verificationStatus === 'verified' ? 'Verified' : 
-                   userData.verificationStatus === 'pending' ? 'In Review' : 'Not Started'}
+                  Not Started
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             <div className="card card-floating">
               <div className="card-body">
@@ -178,30 +126,25 @@ export default function Dashboard() {
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    background: getCredibilityColor(userData.credibilityScore)
+                    background: 'var(--error-500)'
                   }}></div>
                 </div>
                 <div className="text-2xl font-semibold text-primary">
-                  {userData.credibilityScore}/100
+                  0/100
                 </div>
                 <div style={{
                   width: '100%',
                   height: '4px',
                   background: 'var(--surface-200)',
                   borderRadius: '2px',
-                  marginTop: '0.5rem',
-                  overflow: 'hidden'
+                  marginTop: '0.5rem'
                 }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${userData.credibilityScore}%` }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                    style={{
-                      height: '100%',
-                      background: getCredibilityColor(userData.credibilityScore),
-                      borderRadius: '2px'
-                    }}
-                  />
+                  <div style={{
+                    width: '0%',
+                    height: '100%',
+                    background: 'var(--error-500)',
+                    borderRadius: '2px'
+                  }} />
                 </div>
               </div>
             </div>
@@ -212,19 +155,18 @@ export default function Dashboard() {
                   Profile Completion
                 </h3>
                 <div className="text-2xl font-semibold text-primary">
-                  85%
+                  25%
                 </div>
                 <div style={{
                   width: '100%',
                   height: '4px',
                   background: 'var(--surface-200)',
                   borderRadius: '2px',
-                  marginTop: '0.5rem',
-                  overflow: 'hidden'
+                  marginTop: '0.5rem'
                 }}>
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: '85%' }}
+                    animate={{ width: '25%' }}
                     transition={{ duration: 1, delay: 0.7 }}
                     style={{
                       height: '100%',
@@ -250,32 +192,30 @@ export default function Dashboard() {
                   <div style={{ display: 'grid', gap: '1rem' }}>
                     <div>
                       <div className="text-sm font-medium text-secondary">Email</div>
-                      <div className="text-primary">{userData.email}</div>
+                      <div className="text-primary">{user?.email}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-secondary">Role</div>
-                      <div className="text-primary" style={{ textTransform: 'capitalize' }}>
-                        {userData.role}
+                      <div className="text-sm font-medium text-secondary">Name</div>
+                      <div className="text-primary">
+                        {user?.firstName} {user?.lastName}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-secondary">Institution</div>
-                      <div className="text-primary">{userData.institution}</div>
+                      <div className="text-sm font-medium text-secondary">Status</div>
+                      <div className="text-primary">New User</div>
                     </div>
                   </div>
 
-                  {userData.verificationStatus === 'unverified' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1 }}
-                      style={{ marginTop: '1.5rem' }}
-                    >
-                      <Link href="/verification" className="btn btn-primary" style={{ width: '100%' }}>
-                        Start Verification Process
-                      </Link>
-                    </motion.div>
-                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1 }}
+                    style={{ marginTop: '1.5rem' }}
+                  >
+                    <Link href="/verification" className="btn btn-primary" style={{ width: '100%' }}>
+                      Start Verification Process
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
             </motion.div>
@@ -309,41 +249,31 @@ export default function Dashboard() {
                       </Link>
                     </motion.div>
 
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <div 
+                      className="card"
+                      style={{ 
+                        padding: '1rem',
+                        border: '1px solid var(--surface-200)',
+                        opacity: 0.6,
+                        cursor: 'not-allowed'
+                      }}
                     >
-                      <div 
-                        className="card"
-                        style={{ 
-                          padding: '1rem',
-                          border: '1px solid var(--surface-200)',
-                          opacity: 0.6,
-                          cursor: 'not-allowed'
-                        }}
-                      >
-                        <div className="font-medium text-primary">Browse Network</div>
-                        <div className="text-sm text-muted">Connect with verified professionals</div>
-                      </div>
-                    </motion.div>
+                      <div className="font-medium text-primary">Browse Network</div>
+                      <div className="text-sm text-muted">Connect with verified professionals</div>
+                    </div>
 
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                    <div 
+                      className="card"
+                      style={{ 
+                        padding: '1rem',
+                        border: '1px solid var(--surface-200)',
+                        opacity: 0.6,
+                        cursor: 'not-allowed'
+                      }}
                     >
-                      <div 
-                        className="card"
-                        style={{ 
-                          padding: '1rem',
-                          border: '1px solid var(--surface-200)',
-                          opacity: 0.6,
-                          cursor: 'not-allowed'
-                        }}
-                      >
-                        <div className="font-medium text-primary">Job Opportunities</div>
-                        <div className="text-sm text-muted">Explore verified job postings</div>
-                      </div>
-                    </motion.div>
+                      <div className="font-medium text-primary">Job Opportunities</div>
+                      <div className="text-sm text-muted">Explore verified job postings</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -351,35 +281,30 @@ export default function Dashboard() {
           </div>
 
           {/* Verification Journey */}
-          <AnimatePresence>
-            {userData.verificationStatus === 'unverified' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.5, delay: 0.8 }}
-                style={{ marginTop: '3rem' }}
-              >
-                <div className="card card-floating" style={{ 
-                  background: 'linear-gradient(135deg, var(--accent-50) 0%, var(--surface-100) 100%)',
-                  border: '1px solid var(--accent-200)'
-                }}>
-                  <div className="card-body-lg">
-                    <h2 className="text-xl font-semibold text-primary" style={{ marginBottom: '1rem' }}>
-                      Complete Your Verification
-                    </h2>
-                    <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>
-                      Unlock the full potential of LATAP by verifying your academic credentials. 
-                      Verified profiles get priority access to opportunities and higher credibility scores.
-                    </p>
-                    <Link href="/verification" className="btn btn-accent btn-lg">
-                      Begin Verification Journey →
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+            style={{ marginTop: '3rem' }}
+          >
+            <div className="card card-floating" style={{ 
+              background: 'linear-gradient(135deg, var(--accent-50) 0%, var(--surface-100) 100%)',
+              border: '1px solid var(--accent-200)'
+            }}>
+              <div className="card-body-lg">
+                <h2 className="text-xl font-semibold text-primary" style={{ marginBottom: '1rem' }}>
+                  Complete Your Verification
+                </h2>
+                <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>
+                  Unlock the full potential of LATAP by verifying your academic credentials. 
+                  Verified profiles get priority access to opportunities and higher credibility scores.
+                </p>
+                <Link href="/verification" className="btn btn-accent btn-lg">
+                  Begin Verification Journey →
+                </Link>
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>

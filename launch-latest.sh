@@ -5,13 +5,13 @@ echo "============================================="
 
 # Kill any existing processes
 pkill -f "next dev" 2>/dev/null
-pkill -f "demo-server.js" 2>/dev/null
+pkill -f "server.js" 2>/dev/null
 sleep 2
 
 # Start backend with ES modules
 echo "🔧 Starting Express 5.1 backend..."
 cd backend
-node demo-server.js &
+node server.js &
 BACKEND_PID=$!
 cd ..
 

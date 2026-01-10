@@ -18,7 +18,7 @@ echo "🚀 Starting LATAP Demo..."
 
 # Kill any existing processes
 pkill -f "next dev" 2>/dev/null
-pkill -f "demo-server.js" 2>/dev/null
+pkill -f "server.js" 2>/dev/null
 sleep 2
 
 # Create uploads directory
@@ -27,7 +27,7 @@ mkdir -p backend/uploads/verification
 # Start backend first
 echo "🔧 Starting backend on http://localhost:3001..."
 cd backend
-node demo-server.js &
+node server.js &
 BACKEND_PID=$!
 cd ..
 

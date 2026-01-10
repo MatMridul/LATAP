@@ -86,7 +86,7 @@ const extractTenant = async (req, res, next) => {
     
     // Fallback to custom header for development
     if (!tenantDomain) {
-      tenantDomain = req.get('x-tenant-domain') || 'demo';
+      tenantDomain = req.get('x-tenant-domain') || 'default';
     }
     
     // Cache tenant info in Redis
@@ -430,9 +430,11 @@ app.post('/api/auth/verify', [
       verificationStatus = 'unverified';
       credibilityScore = 30;
     } else if (method === 'digilocker') {
-      // Simulate DigiLocker verification (instant for demo)
-      verificationStatus = 'verified';
-      credibilityScore = 70;
+      // DigiLocker integration not implemented
+      return res.status(501).json({ 
+        error: 'DIGILOCKER_NOT_IMPLEMENTED',
+        message: 'DigiLocker verification service is not yet implemented'
+      });
     } else if (method === 'documents') {
       verificationStatus = 'pending';
       credibilityScore = 50;

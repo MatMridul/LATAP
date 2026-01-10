@@ -18,7 +18,7 @@ fi
 # Start backend only for testing
 echo "Testing backend..."
 cd backend
-node demo-server.js &
+node server.js &
 SERVER_PID=$!
 cd ..
 
@@ -44,4 +44,4 @@ kill $SERVER_PID 2>/dev/null
 echo ""
 echo "🎯 Ready to launch full demo!"
 echo "Run: npm run dev (in one terminal)"
-echo "Run: cd backend && node demo-server.js (in another terminal)"
+echo "Run: cd backend && node server.js (in another terminal)"

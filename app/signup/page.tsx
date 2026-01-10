@@ -3,336 +3,318 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-
-interface FormData {
-  fullName: string
-  email: string
-  phone: string
-  role: string
-  institution: string
-  graduationYear: string
-  program: string
-  currentPosition: string
-}
+import { motion } from 'framer-motion'
 
 export default function Signup() {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '',
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
-    phone: '',
-    role: '',
-    institution: '',
-    graduationYear: '',
-    program: '',
-    currentPosition: ''
+    password: '',
+    confirmPassword: ''
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([])
+  const [passwordMismatch, setPasswordMismatch] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
-  const totalSteps = 3
+  const validatePassword = (password: string) => {
+    const errors = []
+    if (password.length < 8) {
+      errors.push('At least 8 characters')
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push('One uppercase letter')
+    }
+    if (!/[a-z]/.test(password)) {
+      errors.push('One lowercase letter')
+    }
+    if (!/[0-9]/.test(password)) {
+      errors.push('One number')
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors.push('One special character')
+    }
+    return errors
+  }
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(prev => prev + 1)
-    } else {
-      localStorage.setItem('userProfile', JSON.stringify(formData))
-      router.push('/verification')
+    setError('')
+    
+    // Real-time password validation
+    if (field === 'password') {
+      const errors = validatePassword(value)
+      setPasswordErrors(errors)
+      
+      // Check password match if confirm password exists
+      if (formData.confirmPassword) {
+        setPasswordMismatch(value !== formData.confirmPassword)
+      }
+    }
+    
+    // Real-time confirm password validation
+    if (field === 'confirmPassword') {
+      setPasswordMismatch(value !== formData.password)
+    }
+    
+    // Real-time email validation
+    if (field === 'email') {
+      if (value && !validateEmail(value)) {
+        setEmailError('Please enter a valid email address')
+      } else {
+        setEmailError('')
+      }
     }
   }
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError('')
+
+    // Validation
+    if (passwordErrors.length > 0) {
+      setError(`Password must contain: ${passwordErrors.join(', ')}`)
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed')
+      }
+
+      setSuccess('Account created successfully! Please check your email to verify your account.')
+      setTimeout(() => {
+        router.push('/login')
+      }, 3000)
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const getStepTitle = () => {
-    switch (currentStep) {
-      case 1: return 'Personal Information'
-      case 2: return 'Academic Background'
-      case 3: return 'Professional Details'
-      default: return ''
-    }
-  }
-
-  const getStepDescription = () => {
-    switch (currentStep) {
-      case 1: return 'Let\'s start with your basic information'
-      case 2: return 'Tell us about your educational background'
-      case 3: return 'Share your current professional status'
-      default: return ''
-    }
-  }
-
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 1:
-        return formData.fullName && formData.email && formData.phone && formData.role
-      case 2:
-        return formData.institution && formData.graduationYear && formData.program
-      case 3:
-        return formData.currentPosition
-      default:
-        return false
-    }
-  }
-
-  const stepVariants = {
-    enter: { opacity: 0, x: 20 },
-    center: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -20 }
+  const isFormValid = () => {
+    return formData.firstName && formData.lastName && formData.email && 
+           formData.password && formData.confirmPassword && 
+           formData.password === formData.confirmPassword &&
+           passwordErrors.length === 0 && emailError === ''
   }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
-      {/* Elite Navigation */}
+      {/* Navigation */}
       <nav className="nav-primary">
         <div className="nav-container container">
           <Link href="/" className="nav-brand">
             <div className="nav-logo">L</div>
             <div>
               <div className="nav-title">LATAP</div>
-              <div className="nav-subtitle">Account Registration</div>
+              <div className="nav-subtitle">Create Account</div>
             </div>
           </Link>
           <div className="nav-actions">
-            <Link href="/" className="btn btn-ghost btn-sm">
-              ← Back to Home
+            <Link href="/login" className="btn btn-ghost btn-sm">
+              Already have an account?
             </Link>
           </div>
         </div>
       </nav>
 
       <div className="container section">
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          {/* Progress Indicator */}
-          <motion.div 
-            className="progress-container"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            {[1, 2, 3].map((step) => (
-              <div 
-                key={step}
-                className={`progress-step ${
-                  step < currentStep ? 'completed' : 
-                  step === currentStep ? 'active' : ''
-                }`}
-              >
-                <div className="progress-indicator">{step}</div>
-                <div className="progress-label">
-                  Step {step}
-                </div>
-              </div>
-            ))}
-          </motion.div>
-
-          {/* Form Card */}
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
           <motion.div 
             className="card card-floating"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.6 }}
           >
             <div className="card-body-xl">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-                style={{ textAlign: 'center', marginBottom: '2rem' }}
-              >
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                 <h1 className="text-2xl font-semibold text-primary" style={{ marginBottom: '0.5rem' }}>
-                  {getStepTitle()}
+                  Create Your Account
                 </h1>
                 <p className="text-secondary">
-                  {getStepDescription()}
+                  Join LATAP to connect with alumni and discover opportunities
                 </p>
-              </motion.div>
+              </div>
 
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                >
-                  {currentStep === 1 && (
-                    <div style={{ display: 'grid', gap: '1.5rem' }}>
-                      <div className="form-group">
-                        <label className="form-label required">Full Name</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={formData.fullName}
-                          onChange={(e) => handleInputChange('fullName', e.target.value)}
-                          placeholder="Enter your complete name"
-                        />
-                      </div>
-                      
-                      <div className="grid grid-2">
-                        <div className="form-group">
-                          <label className="form-label required">Email Address</label>
-                          <input
-                            type="email"
-                            className="form-input"
-                            value={formData.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
-                            placeholder="your.email@example.com"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label required">Phone Number</label>
-                          <input
-                            type="tel"
-                            className="form-input"
-                            value={formData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                            placeholder="+91 98765 43210"
-                          />
-                        </div>
-                      </div>
+              {error && (
+                <div style={{
+                  background: 'var(--error-50)',
+                  border: '1px solid var(--error-200)',
+                  color: 'var(--error-600)',
+                  padding: '1rem',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '1.5rem',
+                  fontSize: '0.875rem'
+                }}>
+                  {error}
+                </div>
+              )}
 
-                      <div className="form-group">
-                        <label className="form-label required">Role</label>
-                        <select
-                          className="form-input"
-                          value={formData.role}
-                          onChange={(e) => handleInputChange('role', e.target.value)}
-                        >
-                          <option value="">Select your role</option>
-                          <option value="student">Current Student</option>
-                          <option value="alumni">Alumni</option>
-                          <option value="professional">Working Professional</option>
-                          <option value="recruiter">Recruiter/HR</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
+              {success && (
+                <div style={{
+                  background: 'var(--success-50)',
+                  border: '1px solid var(--success-200)',
+                  color: 'var(--success-600)',
+                  padding: '1rem',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '1.5rem',
+                  fontSize: '0.875rem'
+                }}>
+                  {success}
+                </div>
+              )}
 
-                  {currentStep === 2 && (
-                    <div style={{ display: 'grid', gap: '1.5rem' }}>
-                      <div className="form-group">
-                        <label className="form-label required">Institution</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={formData.institution}
-                          onChange={(e) => handleInputChange('institution', e.target.value)}
-                          placeholder="e.g., Indian Institute of Technology Delhi"
-                        />
-                      </div>
-
-                      <div className="grid grid-2">
-                        <div className="form-group">
-                          <label className="form-label required">Graduation Year</label>
-                          <input
-                            type="number"
-                            className="form-input"
-                            value={formData.graduationYear}
-                            onChange={(e) => handleInputChange('graduationYear', e.target.value)}
-                            placeholder="2024"
-                            min="1950"
-                            max="2030"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label required">Program/Degree</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={formData.program}
-                            onChange={(e) => handleInputChange('program', e.target.value)}
-                            placeholder="B.Tech Computer Science"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep === 3 && (
-                    <div style={{ display: 'grid', gap: '1.5rem' }}>
-                      <div className="form-group">
-                        <label className="form-label required">Current Position</label>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={formData.currentPosition}
-                          onChange={(e) => handleInputChange('currentPosition', e.target.value)}
-                          placeholder="e.g., Software Engineer at Google"
-                        />
-                      </div>
-
-                      <div className="card" style={{ 
-                        background: 'var(--accent-50)', 
-                        border: '1px solid var(--accent-200)',
-                        padding: '1.5rem'
-                      }}>
-                        <h3 className="font-medium text-primary" style={{ marginBottom: '0.5rem' }}>
-                          Next: Credential Verification
-                        </h3>
-                        <p className="text-sm text-secondary">
-                          After registration, you'll be guided through our secure verification process 
-                          to authenticate your academic credentials.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Action Buttons */}
-              <motion.div 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginTop: '2rem',
-                  paddingTop: '2rem',
-                  borderTop: 'var(--border-subtle)'
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4, delay: 0.6 }}
-              >
-                <button
-                  onClick={handleBack}
-                  className="btn btn-ghost"
-                  disabled={currentStep === 1}
-                >
-                  ← Previous
-                </button>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {[1, 2, 3].map((step) => (
-                    <div
-                      key={step}
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        background: step <= currentStep ? 'var(--accent-600)' : 'var(--surface-300)',
-                        transition: 'all var(--transition-medium)'
-                      }}
+              <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label required">First Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                      placeholder="John"
+                      required
                     />
-                  ))}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label required">Last Name</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      placeholder="Doe"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label required">Email Address</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="john.doe@example.com"
+                    required
+                  />
+                  {emailError && (
+                    <div style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--error-600)'
+                    }}>
+                      {emailError}
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label required">Password</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder="At least 8 characters"
+                    required
+                  />
+                  {passwordErrors.length > 0 && (
+                    <div style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--error-600)'
+                    }}>
+                      Password must contain:
+                      <ul style={{ margin: '0.25rem 0 0 1rem', padding: 0 }}>
+                        {passwordErrors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label required">Confirm Password</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    placeholder="Repeat your password"
+                    required
+                  />
+                  {passwordMismatch && formData.confirmPassword && (
+                    <div style={{
+                      marginTop: '0.5rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--error-600)'
+                    }}>
+                      Passwords do not match
+                    </div>
+                  )}
                 </div>
 
                 <button
-                  onClick={handleNext}
-                  className="btn btn-primary"
-                  disabled={!isStepValid()}
+                  type="submit"
+                  className="btn btn-primary btn-lg"
+                  disabled={!isFormValid() || isLoading}
+                  style={{ width: '100%' }}
                 >
-                  {currentStep === totalSteps ? 'Complete Registration' : 'Continue →'}
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
                 </button>
-              </motion.div>
+              </form>
+
+              <div style={{
+                textAlign: 'center',
+                marginTop: '2rem',
+                paddingTop: '2rem',
+                borderTop: 'var(--border-subtle)'
+              }}>
+                <p className="text-sm text-secondary">
+                  Already have an account?{' '}
+                  <Link href="/login" className="text-accent-600 font-medium">
+                    Sign in here
+                  </Link>
+                </p>
+              </div>
             </div>
           </motion.div>
         </div>
