@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -5,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const Redis = require('ioredis');
 const { body, validationResult, param } = require('express-validator');
@@ -22,10 +24,44 @@ const pool = new Pool({
 });
 
 // Redis connection for caching and sessions
-const redis = new Redis(process.env.REDIS_URL, {
-  retryDelayOnFailover: 100,
-  maxRetriesPerRequest: 3,
-});
+let redis = null;
+const isProduction = process.env.NODE_ENV === 'production';
+
+try {
+  redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    retryDelayOnFailover: 100,
+    maxRetriesPerRequest: 3,
+    connectTimeout: 5000,
+    lazyConnect: true,
+    retryStrategy: (times) => {
+      if (times > 3) return null; // Stop retrying after 3 attempts
+      return Math.min(times * 50, 2000);
+    }
+  });
+
+  redis.on('error', (err) => {
+    if (isProduction) {
+      console.error('❌ Redis connection failed in production:', err.message);
+      process.exit(1);
+    } else {
+      console.warn('⚠️ Redis unavailable in development - continuing without cache');
+      redis = null;
+    }
+  });
+
+  redis.on('connect', () => {
+    console.log('✅ Redis connected');
+  });
+
+} catch (error) {
+  if (isProduction) {
+    console.error('❌ Redis initialization failed in production:', error.message);
+    process.exit(1);
+  } else {
+    console.warn('⚠️ Redis unavailable in development - continuing without cache');
+    redis = null;
+  }
+}
 
 // Security middleware
 app.use(helmet({
@@ -89,9 +125,17 @@ const extractTenant = async (req, res, next) => {
       tenantDomain = req.get('x-tenant-domain') || 'default';
     }
     
-    // Cache tenant info in Redis
+    // Cache tenant info in Redis (if available)
     const cacheKey = `tenant:${tenantDomain}`;
-    let tenant = await redis.get(cacheKey);
+    let tenant = null;
+    
+    if (redis) {
+      try {
+        tenant = await redis.get(cacheKey);
+      } catch (err) {
+        console.warn('Redis cache read failed:', err.message);
+      }
+    }
     
     if (!tenant) {
       const result = await pool.query(
@@ -104,7 +148,14 @@ const extractTenant = async (req, res, next) => {
       }
       
       tenant = JSON.stringify(result.rows[0]);
-      await redis.setex(cacheKey, 300, tenant); // Cache for 5 minutes
+      
+      if (redis) {
+        try {
+          await redis.setex(cacheKey, 300, tenant); // Cache for 5 minutes
+        } catch (err) {
+          console.warn('Redis cache write failed:', err.message);
+        }
+      }
     }
     
     req.tenant = JSON.parse(tenant);
@@ -125,8 +176,15 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Access token required' });
     }
     
-    // Check if token is blacklisted
-    const isBlacklisted = await redis.get(`blacklist:${token}`);
+    // Check if token is blacklisted (if Redis available)
+    let isBlacklisted = false;
+    if (redis) {
+      try {
+        isBlacklisted = await redis.get(`blacklist:${token}`);
+      } catch (err) {
+        console.warn('Redis blacklist check failed:', err.message);
+      }
+    }
     if (isBlacklisted) {
       return res.status(401).json({ error: 'Token has been revoked' });
     }
@@ -138,7 +196,15 @@ const authenticateToken = async (req, res, next) => {
       
       // Get user info from cache or database
       const cacheKey = `user:${decoded.userId}`;
-      let user = await redis.get(cacheKey);
+      let user = null;
+      
+      if (redis) {
+        try {
+          user = await redis.get(cacheKey);
+        } catch (err) {
+          console.warn('Redis user cache read failed:', err.message);
+        }
+      }
       
       if (!user) {
         const result = await pool.query(
@@ -151,7 +217,14 @@ const authenticateToken = async (req, res, next) => {
         }
         
         user = JSON.stringify(result.rows[0]);
-        await redis.setex(cacheKey, 600, user); // Cache for 10 minutes
+        
+        if (redis) {
+          try {
+            await redis.setex(cacheKey, 600, user); // Cache for 10 minutes
+          } catch (err) {
+            console.warn('Redis user cache write failed:', err.message);
+          }
+        }
       }
       
       req.user = JSON.parse(user);
@@ -209,8 +282,14 @@ app.post('/api/auth/login', authLimiter, validateLogin, async (req, res) => {
       expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     });
     
-    // Cache user session
-    await redis.setex(`session:${user.id}`, 86400, token);
+    // Cache user session (if Redis available)
+    if (redis) {
+      try {
+        await redis.setex(`session:${user.id}`, 86400, token);
+      } catch (err) {
+        console.warn('Redis session cache failed:', err.message);
+      }
+    }
     
     const userResponse = { ...user };
     delete userResponse.password_hash;
@@ -233,11 +312,15 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
   try {
     const token = req.headers['authorization'].split(' ')[1];
     
-    // Blacklist the token
-    await redis.setex(`blacklist:${token}`, 86400, 'true');
-    
-    // Remove user session
-    await redis.del(`session:${req.user.id}`);
+    // Blacklist the token (if Redis available)
+    if (redis) {
+      try {
+        await redis.setex(`blacklist:${token}`, 86400, 'true');
+        await redis.del(`session:${req.user.id}`);
+      } catch (err) {
+        console.warn('Redis logout operations failed:', err.message);
+      }
+    }
     
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
@@ -291,14 +374,29 @@ app.get('/api/alumni', [extractTenant, authenticateToken], async (req, res) => {
     query += ` ORDER BY u.last_name, u.first_name LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     params.push(limit, offset);
     
-    // Check cache first
+    // Check cache first (if Redis available)
     const cacheKey = `alumni:${req.tenant.id}:${JSON.stringify(req.query)}`;
-    let result = await redis.get(cacheKey);
+    let result = null;
+    
+    if (redis) {
+      try {
+        result = await redis.get(cacheKey);
+      } catch (err) {
+        console.warn('Redis alumni cache read failed:', err.message);
+      }
+    }
     
     if (!result) {
       const dbResult = await pool.query(query, params);
       result = JSON.stringify(dbResult.rows);
-      await redis.setex(cacheKey, 300, result); // Cache for 5 minutes
+      
+      if (redis) {
+        try {
+          await redis.setex(cacheKey, 300, result); // Cache for 5 minutes
+        } catch (err) {
+          console.warn('Redis alumni cache write failed:', err.message);
+        }
+      }
     }
     
     res.json(JSON.parse(result));
@@ -567,7 +665,13 @@ app.use((error, req, res, next) => {
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
   await pool.end();
-  await redis.quit();
+  if (redis) {
+    try {
+      await redis.quit();
+    } catch (err) {
+      console.warn('Redis shutdown failed:', err.message);
+    }
+  }
   process.exit(0);
 });
 
