@@ -1,10 +1,14 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
-import db from '../db.js';
-import { generateToken, authenticateToken } from '../middleware/auth.js';
-import { sendVerificationEmail } from '../services/emailService.js';
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const { Pool } = require('pg');
+const { generateToken, authenticateToken, logAudit } = require('../middleware/identityAuth');
+const { sendVerificationEmail } = require('../services/emailService');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 const router = express.Router();
 
@@ -52,10 +56,10 @@ router.post('/signup', async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create user
+    // Create user with immutable UUID
     const userId = uuidv4();
-    await db.query(
-      `INSERT INTO users (id, email, password_hash, first_name, last_name, email_verified) 
+    await pool.query(
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, is_email_verified) 
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [userId, email, passwordHash, firstName, lastName, false]
     );
@@ -64,13 +68,23 @@ router.post('/signup', async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await db.query(
+    await pool.query(
       'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [userId, token, expiresAt]
     );
 
     // Send verification email
     await sendVerificationEmail(email, token);
+
+    // Audit log signup
+    await logAudit({
+      user_id: userId,
+      action: 'USER_SIGNUP',
+      entity_type: 'user',
+      entity_id: userId,
+      metadata: { email, firstName, lastName },
+      req
+    });
 
     res.status(201).json({
       message: 'Account created successfully. Please check your email to verify your account.',
@@ -92,7 +106,7 @@ router.get('/verify-email', async (req, res) => {
     }
 
     // Find and validate token
-    const tokenResult = await db.query(
+    const tokenResult = await pool.query(
       `SELECT user_id, expires_at, used FROM email_verification_tokens 
        WHERE token = $1`,
       [token]
@@ -113,23 +127,33 @@ router.get('/verify-email', async (req, res) => {
     }
 
     // Mark user as verified and token as used
-    await db.query('BEGIN');
+    await pool.query('BEGIN');
     
-    await db.query(
-      'UPDATE users SET email_verified = TRUE WHERE id = $1',
+    await pool.query(
+      'UPDATE users SET is_email_verified = TRUE WHERE id = $1',
       [tokenData.user_id]
     );
 
-    await db.query(
+    await pool.query(
       'UPDATE email_verification_tokens SET used = TRUE WHERE token = $1',
       [token]
     );
 
-    await db.query('COMMIT');
+    await pool.query('COMMIT');
+
+    // Audit log email verification
+    await logAudit({
+      user_id: tokenData.user_id,
+      action: 'EMAIL_VERIFIED',
+      entity_type: 'user',
+      entity_id: tokenData.user_id,
+      metadata: { token_used: true },
+      req
+    });
 
     res.json({ message: 'Email verified successfully. You can now log in.' });
   } catch (error) {
-    await db.query('ROLLBACK');
+    await pool.query('ROLLBACK');
     console.error('Email verification error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -145,8 +169,8 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user
-    const userResult = await db.query(
-      'SELECT id, email, password_hash, email_verified, first_name, last_name FROM users WHERE email = $1',
+    const userResult = await pool.query(
+      'SELECT id, email, password_hash, is_email_verified, first_name, last_name FROM users WHERE email = $1',
       [email]
     );
 
@@ -163,12 +187,22 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if email is verified
-    if (!user.email_verified) {
+    if (!user.is_email_verified) {
       return res.status(401).json({ error: 'Please verify your email before logging in' });
     }
 
-    // Generate JWT token
+    // Generate JWT token with user_id ONLY
     const token = generateToken(user.id);
+
+    // Audit log login
+    await logAudit({
+      user_id: user.id,
+      action: 'USER_LOGIN',
+      entity_type: 'user',
+      entity_id: user.id,
+      metadata: { email },
+      req
+    });
 
     res.json({
       message: 'Login successful',
@@ -186,16 +220,34 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get current user endpoint
+// Get current user endpoint - uses ONLY req.user.id
 router.get('/me', authenticateToken, async (req, res) => {
-  res.json({
-    user: {
-      id: req.user.id,
-      email: req.user.email,
-      firstName: req.user.first_name,
-      lastName: req.user.last_name
+  try {
+    // Fetch user data using authenticated user_id
+    const userResult = await pool.query(
+      'SELECT id, email, first_name, last_name, is_email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  });
+
+    const user = userResult.rows[0];
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        isEmailVerified: user.is_email_verified
+      }
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;

@@ -98,6 +98,12 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// Import verification routes
+const verificationRoutes = require('./verification/routes/verificationRoutes');
+
+// Mount verification routes
+app.use('/api/verification', verificationRoutes);
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
