@@ -106,10 +106,16 @@ const { authenticateToken, logAudit } = require('./middleware/identityAuth');
 // Import routes
 const authRoutes = require('./routes/auth');
 const verificationRoutes = require('./verification/routes/hardenedVerificationRoutes');
+const opportunitiesRoutes = require('./routes/opportunities');
+const applicationsRoutes = require('./routes/applications');
+const talentProfileRoutes = require('./routes/talentProfile');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/opportunities', opportunitiesRoutes);
+app.use('/api/applications', applicationsRoutes);
+app.use('/api/talent-profile', talentProfileRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
