@@ -4,6 +4,14 @@
 import type {
   OpportunityFeedResponse,
   OpportunityDetailResponse,
+  ApplicationSubmitRequest,
+  ApplicationSubmitResponse,
+  MyApplicationsResponse,
+  ApplicationDetailResponse,
+  ApplicationWithdrawResponse,
+  ApplicationStatusUpdateRequest,
+  ApplicationStatusUpdateResponse,
+  OpportunityApplicationsResponse,
   ErrorResponse,
 } from '../types/api';
 
@@ -132,6 +140,80 @@ class APIClient {
     return this.request<OpportunityDetailResponse>(
       'GET',
       `/api/opportunities/${id}`
+    );
+  }
+
+  // Applications API
+  async submitApplication(
+    opportunityId: string,
+    data: ApplicationSubmitRequest
+  ): Promise<ApplicationSubmitResponse> {
+    return this.request<ApplicationSubmitResponse>(
+      'POST',
+      `/api/opportunities/${opportunityId}/apply`,
+      data
+    );
+  }
+
+  async getMyApplications(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<MyApplicationsResponse> {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.status) query.set('status', params.status);
+
+    const queryString = query.toString();
+    return this.request<MyApplicationsResponse>(
+      'GET',
+      `/api/applications/my-applications${queryString ? `?${queryString}` : ''}`
+    );
+  }
+
+  async getApplicationDetail(id: string): Promise<ApplicationDetailResponse> {
+    return this.request<ApplicationDetailResponse>(
+      'GET',
+      `/api/applications/${id}`
+    );
+  }
+
+  async withdrawApplication(id: string): Promise<ApplicationWithdrawResponse> {
+    return this.request<ApplicationWithdrawResponse>(
+      'PUT',
+      `/api/applications/${id}/withdraw`
+    );
+  }
+
+  async updateApplicationStatus(
+    id: string,
+    data: ApplicationStatusUpdateRequest
+  ): Promise<ApplicationStatusUpdateResponse> {
+    return this.request<ApplicationStatusUpdateResponse>(
+      'PUT',
+      `/api/applications/${id}/status`,
+      data
+    );
+  }
+
+  async getOpportunityApplications(
+    opportunityId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+    }
+  ): Promise<OpportunityApplicationsResponse> {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.status) query.set('status', params.status);
+
+    const queryString = query.toString();
+    return this.request<OpportunityApplicationsResponse>(
+      'GET',
+      `/api/opportunities/${opportunityId}/applications${queryString ? `?${queryString}` : ''}`
     );
   }
 }

@@ -101,6 +101,52 @@ export function handleAPIError(error: APIError): ErrorAction {
     };
   }
 
+  // Application Errors
+  if (error_code === 'DUPLICATE_APPLICATION') {
+    return {
+      type: 'inline',
+      message: "You've already applied to this opportunity",
+    };
+  }
+
+  if (error_code === 'APPLY_TO_OWN_OPPORTUNITY') {
+    return {
+      type: 'inline',
+      message: 'Cannot apply to your own opportunity',
+    };
+  }
+
+  if (error_code === 'APPLICATION_NOT_FOUND') {
+    return {
+      type: 'inline',
+      message: 'Application not found',
+    };
+  }
+
+  if (error_code === 'APPLICATION_INVALID_STATUS') {
+    return {
+      type: 'inline',
+      message: 'Cannot perform this action on the application',
+    };
+  }
+
+  // Profile Errors
+  if (error_code === 'TALENT_PROFILE_MISSING') {
+    return {
+      type: 'modal',
+      message: 'Complete Your Profile',
+      ctaText: 'Create Profile',
+      ctaAction: '/profile/create',
+    };
+  }
+
+  if (error_code === 'TALENT_PROFILE_NOT_OPEN') {
+    return {
+      type: 'inline',
+      message: "You're not currently open to opportunities",
+    };
+  }
+
   // Default
   return {
     type: 'toast',
