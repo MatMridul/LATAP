@@ -635,10 +635,6 @@ try {
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
 
-// Start background jobs
-const { startScheduler } = require('./jobs/scheduler');
-startScheduler();
-
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SHUTDOWN_INITIATED', {
@@ -667,4 +663,15 @@ app.listen(port, () => {
       version: process.env.APP_VERSION || '1.0.0'
     }
   });
+  
+  // Start background jobs after server is listening
+  try {
+    const { startScheduler } = require('./jobs/scheduler');
+    startScheduler();
+  } catch (error) {
+    logger.error('SCHEDULER_START_FAILED', {
+      error_code: 'SCHEDULER_INIT_ERROR',
+      metadata: { error: error.message, stack: error.stack }
+    });
+  }
 });

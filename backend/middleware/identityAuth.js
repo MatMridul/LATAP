@@ -50,7 +50,7 @@ function authenticateToken(req, res, next) {
 
   if (!token) {
     metrics.increment('auth_failures_total');
-    throw new AppError('AUTH_MISSING_TOKEN', 'No token provided', { request_id });
+    return next(new AppError('AUTH_MISSING_TOKEN', 'No token provided', { request_id }));
   }
 
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
