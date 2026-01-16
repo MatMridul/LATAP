@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { logger, ACTION_TYPES } = require('../utils/structuredLogger');
+const { AppError } = require('../utils/errors');
+const metrics = require('../utils/metrics');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -12,13 +15,24 @@ async function logAudit({ user_id, action, entity_type = null, entity_id = null,
   try {
     const ip_address = req?.ip || req?.connection?.remoteAddress || null;
     const user_agent = req?.get('User-Agent') || null;
+    const request_id = req?.context?.request_id || null;
     
     await pool.query(`
       INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata, ip_address, user_agent)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [user_id, action, entity_type, entity_id, JSON.stringify(metadata), ip_address, user_agent]);
+    
+    logger.info('AUDIT_LOG_CREATED', {
+      request_id,
+      user_id,
+      metadata: { action, entity_type, entity_id }
+    });
   } catch (error) {
-    console.error('Audit logging failed:', error);
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id: req?.context?.request_id,
+      error_code: 'AUDIT_LOG_FAILED',
+      metadata: { error: error.message }
+    });
     // Never fail the main operation due to audit logging
   }
 }
@@ -30,25 +44,36 @@ async function logAudit({ user_id, action, entity_type = null, entity_id = null,
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+  const request_id = req.context?.request_id;
+
+  metrics.increment('auth_attempts_total');
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    metrics.increment('auth_failures_total');
+    throw new AppError('AUTH_MISSING_TOKEN', 'No token provided', { request_id });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
     if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
+      metrics.increment('auth_failures_total');
+      
+      if (err.name === 'TokenExpiredError') {
+        return next(new AppError('AUTH_EXPIRED', 'Token expired', { request_id }));
+      }
+      return next(new AppError('AUTH_INVALID_TOKEN', 'Token verification failed', { request_id }));
     }
 
     // Strict JWT payload validation
     if (!decoded.sub || typeof decoded.sub !== 'string') {
-      return res.status(403).json({ error: 'Invalid token payload' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('AUTH_INVALID_TOKEN', 'Invalid token payload', { request_id }));
     }
 
     // UUID validation
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(decoded.sub)) {
-      return res.status(403).json({ error: 'Invalid user identifier' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('INVALID_UUID', 'Invalid user identifier format', { request_id }));
     }
 
     try {
@@ -59,7 +84,8 @@ function authenticateToken(req, res, next) {
       );
 
       if (result.rows.length === 0) {
-        return res.status(403).json({ error: 'User not found' });
+        metrics.increment('auth_failures_total');
+        return next(new AppError('AUTH_INVALID_TOKEN', 'User not found', { request_id }));
       }
 
       // Attach minimal user context
@@ -70,10 +96,21 @@ function authenticateToken(req, res, next) {
         is_email_verified: result.rows[0].is_email_verified
       };
 
+      logger.info(ACTION_TYPES.AUTH_LOGIN, {
+        request_id,
+        user_id: req.user.id,
+        endpoint: `${req.method} ${req.path}`
+      });
+
       next();
     } catch (dbError) {
-      console.error('Auth middleware database error:', dbError);
-      return res.status(500).json({ error: 'Authentication failed' });
+      metrics.increment('auth_failures_total');
+      logger.error(ACTION_TYPES.DATABASE_ERROR, {
+        request_id,
+        error_code: 'DATABASE_CONNECTION_FAILED',
+        metadata: { error: dbError.message, stack: dbError.stack }
+      });
+      return next(new AppError('DATABASE_CONNECTION_FAILED', 'Auth database query failed', { request_id }));
     }
   });
 }

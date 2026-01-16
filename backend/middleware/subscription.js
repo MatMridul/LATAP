@@ -3,6 +3,9 @@
 
 const { getPool } = require('../config/database');
 const { logAudit } = require('./identityAuth');
+const { logger, ACTION_TYPES } = require('../utils/structuredLogger');
+const { AppError } = require('../utils/errors');
+const metrics = require('../utils/metrics');
 
 const pool = getPool();
 

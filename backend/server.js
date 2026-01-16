@@ -92,7 +92,37 @@ const authLimiter = rateLimit({
 
 // Middleware
 app.use(compression());
-app.use(morgan('combined'));
+
+// Request correlation (MUST be first)
+const requestCorrelation = require('./middleware/requestCorrelation');
+app.use(requestCorrelation);
+
+// Structured logging middleware
+const { logger, ACTION_TYPES } = require('./utils/structuredLogger');
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const latency_ms = Date.now() - start;
+    const level = res.statusCode >= 400 ? 'ERROR' : 'INFO';
+    
+    logger.log(level, 'HTTP_REQUEST', {
+      request_id: req.context?.request_id,
+      user_id: req.user?.id,
+      endpoint: `${req.method} ${req.path}`,
+      status: res.statusCode >= 400 ? 'FAILURE' : 'SUCCESS',
+      latency_ms,
+      metadata: {
+        method: req.method,
+        path: req.path,
+        status_code: res.statusCode
+      }
+    });
+  });
+  
+  next();
+});
+
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
@@ -601,30 +631,40 @@ try {
   console.warn('⚠️ Verification module not available:', error.message);
 }
 
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    requestId: req.id || 'unknown'
-  });
-});
+// Global error handler (MUST be last)
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
+
+// Start background jobs
+const { startScheduler } = require('./jobs/scheduler');
+startScheduler();
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SHUTDOWN_INITIATED', {
+    metadata: { signal: 'SIGTERM' }
+  });
+  
   await pool.end();
   if (redis) {
     try {
       await redis.quit();
     } catch (err) {
-      console.warn('Redis shutdown failed:', err.message);
+      logger.error('SHUTDOWN_ERROR', {
+        error_code: 'REDIS_SHUTDOWN_FAILED',
+        metadata: { error: err.message }
+      });
     }
   }
   process.exit(0);
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Alumni Connect API running on port ${port}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info('SERVER_STARTED', {
+    metadata: {
+      port,
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.APP_VERSION || '1.0.0'
+    }
+  });
 });
