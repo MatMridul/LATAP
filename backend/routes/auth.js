@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 const { generateToken, authenticateToken, logAudit } = require('../middleware/identityAuth');
 const { sendVerificationEmail } = require('../services/emailService');
+const { AppError } = require('../utils/errors');
+const { logger, ACTION_TYPES } = require('../utils/structuredLogger');
+const metrics = require('../utils/metrics');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,13 +16,15 @@ const pool = new Pool({
 const router = express.Router();
 
 // Signup endpoint
-router.post('/signup', async (req, res) => {
+router.post('/signup', async (req, res, next) => {
+  const request_id = req.context?.request_id;
+  
   try {
     const { email, password, firstName, lastName } = req.body;
 
     // Validate input
     if (!email || !password || !firstName || !lastName) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return next(new AppError('MISSING_REQUIRED_FIELD', 'All fields are required', { request_id }));
     }
 
     // Password validation rules
@@ -41,15 +46,13 @@ router.post('/signup', async (req, res) => {
     }
 
     if (passwordErrors.length > 0) {
-      return res.status(400).json({ 
-        error: `Password must contain ${passwordErrors.join(', ')}`
-      });
+      return next(new AppError('INVALID_INPUT', `Password must contain ${passwordErrors.join(', ')}`, { request_id }));
     }
 
     // Check if user already exists
     const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'User with this email already exists' });
+      return next(new AppError('USER_ALREADY_EXISTS', 'User with this email already exists', { request_id }));
     }
 
     // Hash password
@@ -73,7 +76,7 @@ router.post('/signup', async (req, res) => {
       [userId, token, expiresAt]
     );
 
-    // Send verification email
+    // Send verification email (commented out for now)
     // await sendVerificationEmail(email, token);
 
     // Audit log signup
@@ -86,13 +89,27 @@ router.post('/signup', async (req, res) => {
       req
     });
 
+    logger.info(ACTION_TYPES.AUTH_REGISTER, {
+      request_id,
+      user_id: userId,
+      endpoint: 'POST /api/auth/signup'
+    });
+
     res.status(201).json({
       message: 'Account created successfully. Please check your email to verify your account.',
       userId
     });
   } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'POST /api/auth/signup'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Registration service temporarily unavailable', { request_id }));
   }
 });
 
@@ -160,12 +177,17 @@ router.get('/verify-email', async (req, res) => {
 });
 
 // Login endpoint
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
+  const request_id = req.context?.request_id;
+  
   try {
+    metrics.increment('auth_attempts_total');
+    
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('MISSING_REQUIRED_FIELD', 'Email and password are required', { request_id }));
     }
 
     // Find user
@@ -175,7 +197,8 @@ router.post('/login', async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('AUTH_INVALID_CREDENTIALS', 'Invalid email or password', { request_id }));
     }
 
     const user = userResult.rows[0];
@@ -183,12 +206,14 @@ router.post('/login', async (req, res) => {
     // Check password
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('AUTH_INVALID_CREDENTIALS', 'Invalid email or password', { request_id }));
     }
 
     // Check if email is verified
     if (!user.is_email_verified) {
-      return res.status(401).json({ error: 'Please verify your email before logging in' });
+      metrics.increment('auth_failures_total');
+      return next(new AppError('EMAIL_NOT_VERIFIED', 'Please verify your email before logging in', { request_id }));
     }
 
     // Generate JWT token with user_id ONLY
@@ -204,6 +229,12 @@ router.post('/login', async (req, res) => {
       req
     });
 
+    logger.info(ACTION_TYPES.AUTH_LOGIN, {
+      request_id,
+      user_id: user.id,
+      endpoint: 'POST /api/auth/login'
+    });
+
     res.json({
       message: 'Login successful',
       token,
@@ -215,8 +246,17 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    metrics.increment('auth_failures_total');
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'POST /api/auth/login'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Authentication service temporarily unavailable', { request_id }));
   }
 });
 

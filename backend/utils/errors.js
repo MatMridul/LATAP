@@ -7,6 +7,7 @@ const ERROR_CODES = {
   AUTH_INVALID_TOKEN: { code: 'AUTH_INVALID_TOKEN', status: 401, message: 'Invalid authentication token' },
   AUTH_MISSING_TOKEN: { code: 'AUTH_MISSING_TOKEN', status: 401, message: 'Authentication required' },
   AUTH_INVALID_CREDENTIALS: { code: 'AUTH_INVALID_CREDENTIALS', status: 401, message: 'Invalid credentials' },
+  EMAIL_NOT_VERIFIED: { code: 'EMAIL_NOT_VERIFIED', status: 401, message: 'Please verify your email before logging in' },
   
   // Verification
   VERIFICATION_INACTIVE: { code: 'VERIFICATION_INACTIVE', status: 403, message: 'Verification not active' },
