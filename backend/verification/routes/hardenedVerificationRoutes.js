@@ -114,6 +114,20 @@ router.post('/submit', authenticateToken, upload.single('document'), async (req,
             req
         });
 
+        // Audit log verification submission
+        await logAudit({
+            user_id: req.user.id,
+            action: 'VERIFICATION_SUBMITTED',
+            entity_type: 'verification_request',
+            entity_id: verificationId,
+            metadata: {
+                claimed_institution: req.body.claimed_institution,
+                claimed_program: req.body.claimed_program,
+                document_hash: documentHash
+            },
+            req
+        });
+
         res.json({
             success: true,
             message: 'Verification request submitted successfully',

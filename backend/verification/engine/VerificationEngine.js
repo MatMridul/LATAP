@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const { Pool } = require('pg');
 const TextractService = require('../ocr/TextractService');
 const MatchingEngine = require('../matching/MatchingEngine');
@@ -15,7 +16,7 @@ class VerificationEngine {
     }
 
     /**
-     * Start verification process for uploaded document
+     * Start verification process - ENFORCES user_id from authentication
      */
     async startVerification(userId, userClaims, uploadedFile) {
         const transaction = await this.db.connect();
@@ -32,53 +33,54 @@ class VerificationEngine {
             const fileBuffer = fs.readFileSync(uploadedFile.path);
             const documentHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-            // Check for duplicate submissions
+            // Check for duplicate submissions by this user
             const existingRequest = await transaction.query(
-                'SELECT id FROM verification_requests WHERE document_hash = $1',
-                [documentHash]
+                'SELECT id FROM verification_requests WHERE document_hash = $1 AND user_id = $2',
+                [documentHash, userId]
             );
 
             if (existingRequest.rows.length > 0) {
                 throw new Error('This document has already been submitted for verification');
             }
 
-            // Convert user claims to IdentityRecord
-            const userIdentityRecord = IdentityRecord.fromUserClaims(userClaims);
-
-            // Create verification request
+            // Create verification request with user_id
+            const verificationId = uuidv4();
             const requestResult = await transaction.query(`
                 INSERT INTO verification_requests (
-                    user_id, claimed_name, claimed_institution, claimed_program,
-                    claimed_start_year, claimed_end_year, user_identity_record,
-                    original_filename, document_hash, status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
+                    id, user_id, claimed_name, claimed_institution, claimed_program,
+                    claimed_start_year, claimed_end_year, document_path, document_hash, status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING id
             `, [
-                userId,
+                verificationId,
+                userId, // IMMUTABLE user_id from JWT
                 userClaims.claimed_name,
                 userClaims.claimed_institution,
                 userClaims.claimed_program,
                 userClaims.claimed_start_year,
                 userClaims.claimed_end_year,
-                JSON.stringify(userIdentityRecord.toJSON()),
-                uploadedFile.originalname,
-                documentHash
+                uploadedFile.path,
+                documentHash,
+                'PENDING'
             ]);
 
-            const verificationId = requestResult.rows[0].id;
-
-            // Log initial progress
-            await this._updateProgress(transaction, verificationId, 'UPLOAD', 25, 'Document uploaded successfully');
+            // Create initial verification attempt
+            const attemptId = uuidv4();
+            await transaction.query(`
+                INSERT INTO verification_attempts (
+                    id, verification_request_id, attempt_number, status
+                ) VALUES ($1, $2, 1, 'PROCESSING')
+            `, [attemptId, verificationId]);
 
             await transaction.query('COMMIT');
 
             // Start async processing
-            this._processVerificationAsync(verificationId, uploadedFile.path);
+            this._processVerificationAsync(verificationId, uploadedFile.path, userId);
 
             return {
                 success: true,
                 verificationId,
-                message: 'Verification started successfully'
+                status: 'PENDING'
             };
 
         } catch (error) {
@@ -90,48 +92,43 @@ class VerificationEngine {
     }
 
     /**
-     * Async processing pipeline
+     * Async processing pipeline with audit logging
      */
-    async _processVerificationAsync(verificationId, filePath) {
+    async _processVerificationAsync(verificationId, filePath, userId) {
         try {
             // Update status to processing OCR
             await this.db.query(
                 'UPDATE verification_requests SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-                ['PROCESSING_OCR', verificationId]
+                ['PROCESSING', verificationId]
             );
-
-            await this._updateProgress(null, verificationId, 'OCR', 50, 'Processing document with OCR...');
 
             // Perform OCR
             const ocrResult = await this.textractService.extractTextFromPDF(filePath);
 
             if (!ocrResult.success) {
-                await this._handleOCRFailure(verificationId, ocrResult.error);
+                await this._handleOCRFailure(verificationId, userId, ocrResult.error);
                 return;
             }
 
-            // Normalize OCR data to IdentityRecord
-            const ocrIdentityRecord = this.textractService.normalizeToIdentityRecord(
-                ocrResult.rawText, 
-                ocrResult.blocks
-            );
-
-            // Save OCR results
+            // Update verification attempt with OCR results
             await this.db.query(`
-                UPDATE verification_requests 
-                SET ocr_completed_at = CURRENT_TIMESTAMP,
-                    ocr_raw_text = $1,
-                    ocr_blocks = $2,
-                    ocr_identity_record = $3,
-                    status = 'MATCHING',
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = $4
+                UPDATE verification_attempts 
+                SET ocr_text = $1,
+                    extracted_data = $2,
+                    status = 'MATCHING'
+                WHERE verification_request_id = $3 AND attempt_number = 1
             `, [
                 ocrResult.rawText,
                 JSON.stringify(ocrResult.blocks),
-                JSON.stringify(ocrIdentityRecord.toJSON()),
                 verificationId
             ]);
+
+            // Audit log OCR completion
+            await this.db.query(`
+                INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+                SELECT user_id, 'OCR_COMPLETED', 'verification_request', $1, $2
+                FROM verification_requests WHERE id = $1
+            `, [verificationId, JSON.stringify({ ocr_success: true })]);
 
             // Delete original document after successful OCR
             await this._deleteDocument(verificationId, filePath);
@@ -158,105 +155,155 @@ class VerificationEngine {
                 [verificationId]
             );
 
-            const userIdentityRecord = IdentityRecord.fromJSON(
-                requestResult.rows[0].user_identity_record
+
+            // Get user claims for matching
+            const requestData = await this.db.query(
+                'SELECT user_id, claimed_name, claimed_institution, claimed_program, claimed_start_year, claimed_end_year FROM verification_requests WHERE id = $1',
+                [verificationId]
             );
+
+            if (requestData.rows.length === 0) {
+                throw new Error('Verification request not found');
+            }
+
+            const userClaims = requestData.rows[0];
+            const userId = userClaims.user_id;
 
             // Perform matching
             const matchingResults = MatchingEngine.compareIdentityRecords(
-                userIdentityRecord, 
-                ocrIdentityRecord
+                userClaims,
+                ocrResult
             );
 
-            // Determine final status
-            let finalStatus;
-            let verifiedAt = null;
-
-            switch (matchingResults.overallResult) {
-                case 'APPROVED':
-                    finalStatus = 'APPROVED';
-                    verifiedAt = new Date();
-                    break;
-                case 'MANUAL_REVIEW':
-                    finalStatus = 'MANUAL_REVIEW';
-                    break;
-                case 'REJECTED':
-                default:
-                    finalStatus = 'REJECTED';
-                    break;
+            // Determine final decision
+            let decision;
+            if (matchingResults.matchScore >= 80) {
+                decision = 'APPROVED';
+            } else if (matchingResults.matchScore >= 60) {
+                decision = 'MANUAL_REVIEW';
+            } else {
+                decision = 'REJECTED';
             }
 
-            // Update verification request
+            // Update verification attempt with results
             await this.db.query(`
-                UPDATE verification_requests 
-                SET matching_completed_at = CURRENT_TIMESTAMP,
-                    match_score = $1,
-                    field_matches = $2,
-                    mismatches = $3,
-                    status = $4,
-                    verified_at = $5,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = $6
+                UPDATE verification_attempts 
+                SET matching_results = $1,
+                    decision = $2,
+                    status = 'COMPLETED',
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE verification_request_id = $3 AND attempt_number = 1
             `, [
-                matchingResults.matchScore,
-                JSON.stringify(matchingResults.fieldMatches),
-                JSON.stringify(matchingResults.mismatches),
-                finalStatus,
-                verifiedAt,
+                JSON.stringify(matchingResults),
+                decision,
                 verificationId
             ]);
 
-            // Update user verification status
-            if (finalStatus === 'APPROVED') {
-                await this._updateUserVerificationStatus(verificationId, 'VERIFIED', verifiedAt);
-                await this._updateProgress(null, verificationId, 'COMPLETE', 100, 'Verification completed successfully');
-            } else if (finalStatus === 'REJECTED') {
-                await this._updateUserVerificationStatus(verificationId, 'REJECTED');
-                await this._updateProgress(null, verificationId, 'COMPLETE', 100, 'Verification rejected due to data mismatch');
+            // Update verification request status
+            await this.db.query(`
+                UPDATE verification_requests 
+                SET status = $1, updated_at = CURRENT_TIMESTAMP
+                WHERE id = $2
+            `, [decision, verificationId]);
+
+            // If approved, create user-institution mapping
+            if (decision === 'APPROVED') {
+                await this._createUserInstitutionMapping(userId, userClaims);
+                
+                // Audit log approval
+                await this.db.query(`
+                    INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+                    VALUES ($1, 'VERIFICATION_APPROVED', 'verification_request', $2, $3)
+                `, [userId, verificationId, JSON.stringify({ match_score: matchingResults.matchScore })]);
+            } else if (decision === 'REJECTED') {
+                // Audit log rejection
+                await this.db.query(`
+                    INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+                    VALUES ($1, 'VERIFICATION_REJECTED', 'verification_request', $2, $3)
+                `, [userId, verificationId, JSON.stringify({ 
+                    match_score: matchingResults.matchScore,
+                    mismatches: matchingResults.mismatches 
+                })]);
             } else {
-                await this._updateUserVerificationStatus(verificationId, 'PENDING');
-                await this._updateProgress(null, verificationId, 'COMPLETE', 100, 'Verification requires manual review');
+                // Audit log manual review
+                await this.db.query(`
+                    INSERT INTO audit_logs (user_id, action, entity_type, entity_id, metadata)
+                    VALUES ($1, 'VERIFICATION_MANUAL_REVIEW', 'verification_request', $2, $3)
+                `, [userId, verificationId, JSON.stringify({ match_score: matchingResults.matchScore })]);
             }
 
         } catch (error) {
+            console.error('Verification processing error:', error);
             await this.db.query(`
-                UPDATE verification_requests 
-                SET matching_error = $1, status = 'REJECTED', updated_at = CURRENT_TIMESTAMP
-                WHERE id = $2
+                UPDATE verification_attempts 
+                SET failure_reason = $1, status = 'FAILED', completed_at = CURRENT_TIMESTAMP
+                WHERE verification_request_id = $2 AND attempt_number = 1
             `, [error.message, verificationId]);
 
-            await this._updateProgress(null, verificationId, 'COMPLETE', 100, 'Verification failed during matching');
+            await this.db.query(`
+                UPDATE verification_requests 
+                SET status = 'REJECTED', updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+            `, [verificationId]);
         }
     }
 
     /**
-     * Delete document after OCR completion
+     * Create user-institution mapping on successful verification
      */
-    async _deleteDocument(verificationId, filePath) {
+    async _createUserInstitutionMapping(userId, userClaims) {
         try {
-            // Delete file
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-
-            // Log deletion
-            await this.db.query(`
-                INSERT INTO document_deletion_log (
-                    verification_request_id, original_filename, document_hash, deletion_reason
-                ) SELECT id, original_filename, document_hash, 'OCR_COMPLETE'
-                FROM verification_requests WHERE id = $1
-            `, [verificationId]);
-
-            // Update verification request
-            await this.db.query(
-                'UPDATE verification_requests SET document_deleted_at = CURRENT_TIMESTAMP WHERE id = $1',
-                [verificationId]
+            // Find or create institution
+            let institutionResult = await this.db.query(
+                'SELECT id FROM institutions WHERE name ILIKE $1 LIMIT 1',
+                [userClaims.claimed_institution]
             );
 
+            let institutionId;
+            if (institutionResult.rows.length === 0) {
+                // Create institution if not exists
+                const newInstitution = await this.db.query(
+                    'INSERT INTO institutions (name, domain) VALUES ($1, $2) RETURNING id',
+                    [userClaims.claimed_institution, userClaims.claimed_institution.toLowerCase().replace(/\s+/g, '-')]
+                );
+                institutionId = newInstitution.rows[0].id;
+            } else {
+                institutionId = institutionResult.rows[0].id;
+            }
+
+            // Create or update user-institution mapping
+            const expiresAt = new Date();
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1); // 1 year validity
+
+            await this.db.query(`
+                INSERT INTO user_institutions (
+                    user_id, institution_id, source, verified_at, expires_at, is_active
+                ) VALUES ($1, $2, 'OCR', CURRENT_TIMESTAMP, $3, TRUE)
+                ON CONFLICT (user_id, institution_id) 
+                DO UPDATE SET verified_at = CURRENT_TIMESTAMP, expires_at = $3, is_active = TRUE
+            `, [userId, institutionId, expiresAt]);
+
         } catch (error) {
-            console.error('Document deletion failed:', error);
-            // Don't fail the entire process for deletion errors
+            console.error('Failed to create user-institution mapping:', error);
+            // Don't fail verification if mapping fails
         }
+    }
+
+    /**
+     * Handle OCR failure
+     */
+    async _handleOCRFailure(verificationId, userId, error) {
+        await this.db.query(`
+            UPDATE verification_attempts 
+            SET failure_reason = $1, status = 'FAILED', completed_at = CURRENT_TIMESTAMP
+            WHERE verification_request_id = $2 AND attempt_number = 1
+        `, [error, verificationId]);
+
+        await this.db.query(`
+            UPDATE verification_requests 
+            SET status = 'REJECTED', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+        `, [verificationId]);
     }
 
     /**

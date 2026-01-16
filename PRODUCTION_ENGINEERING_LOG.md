@@ -366,3 +366,83 @@ LATAP backend required comprehensive identity and authorization hardening to est
 - User-institution relationships require careful lifecycle management
 
 **Status**: IMPLEMENTATION COMPLETE - Ready for integration testing
+
+
+---
+
+### Entry #3: Verification Pipeline Identity Integration
+**Date**: 2026-01-16T21:00:00Z  
+**Engineer**: Production Team  
+**Severity**: CRITICAL  
+**Status**: COMPLETED  
+
+#### Context
+Verification pipeline existed but was not integrated with hardened identity system. Routes accepted user_id from request body, lacked audit logging, and had no user-institution lifecycle management.
+
+#### Implementation
+**Route Integration:**
+- Replaced `verificationRoutes.js` with `hardenedVerificationRoutes.js` in server.js
+- All verification routes now require authentication via `authenticateToken`
+- Removed all client-provided user_id acceptance
+
+**VerificationEngine Updates:**
+- Enforced `user_id` parameter from JWT in `startVerification()`
+- Updated duplicate check to include user_id
+- Modified async processing to use `verification_attempts` table
+- Added user-institution mapping creation on approval
+
+**Audit Logging:**
+- Added `VERIFICATION_SUBMITTED` log on document upload
+- Added `OCR_COMPLETED` log after OCR processing
+- Added `VERIFICATION_APPROVED/REJECTED/MANUAL_REVIEW` logs on decision
+- All logs include user_id, entity_id, and metadata
+
+**User-Institution Lifecycle:**
+- Created `_createUserInstitutionMapping()` method
+- Automatic institution creation if not exists
+- 1-year validity period with `expires_at`
+- `is_active` flag for lifecycle management
+
+**Expiry Management:**
+- Created `verificationExpiry.js` utility
+- `expireVerifications()` function for cron jobs
+- `getUserActiveInstitutions()` for user queries
+- `needsReverification()` for 30-day warning
+
+#### Technical Details
+- Verification requests tied to `user_id` from JWT
+- OCR results stored in `verification_attempts` table
+- Matching results include score and mismatches
+- User-institution mapping supports multiple institutions
+- Expiry handled via `is_active` flag and `expires_at` timestamp
+
+#### Production Impact
+- **Security**: No identity spoofing possible
+- **Auditability**: Complete verification lifecycle tracked
+- **Compliance**: All actions traceable to user_id
+- **Scalability**: User-institution many-to-many relationships
+- **Maintenance**: Automatic expiry management
+
+#### Files Modified
+- `backend/server.js` - Route integration
+- `backend/verification/engine/VerificationEngine.js` - Identity enforcement
+- `backend/verification/routes/hardenedVerificationRoutes.js` - Protected routes
+- `backend/utils/verificationExpiry.js` - Expiry management (new)
+- `test-identity-hardened-verification.sh` - Integration test (new)
+
+#### Verification Steps
+1. User cannot submit verification without authentication
+2. Verification request created with req.user.id only
+3. OCR and matching results stored correctly
+4. User-institution mapping created on approval
+5. All actions logged to audit_logs
+6. Expiry utility functions correctly
+
+#### Production Learnings
+- Integration must be complete - partial identity enforcement creates vulnerabilities
+- Audit logging should be comprehensive from day one
+- Lifecycle management (expiry) must be built into initial design
+- Testing end-to-end flow reveals integration gaps
+- User-institution relationships require careful expiry handling
+
+**Status**: INTEGRATION COMPLETE - Verification pipeline fully identity-hardened

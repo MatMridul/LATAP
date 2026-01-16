@@ -98,13 +98,18 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
-
-// Import verification routes
-const verificationRoutes = require('./verification/routes/verificationRoutes');
-
-// Mount verification routes
-app.use('/api/verification', verificationRoutes);
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Import hardened identity middleware
+const { authenticateToken, logAudit } = require('./middleware/identityAuth');
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const verificationRoutes = require('./verification/routes/hardenedVerificationRoutes');
+
+// Mount routes
+app.use('/api/auth', authRoutes);
+app.use('/api/verification', verificationRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
