@@ -14,9 +14,13 @@ export default function OpportunityApplicationsPage({ params }: { params: { id: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [isPremium, setIsPremium] = useState(false); // TODO: Get from subscription status
 
   useEffect(() => {
     loadApplicants();
+    // TODO: Load subscription status
+    // For now, assume free tier
+    setIsPremium(false);
   }, [params.id, statusFilter]);
 
   async function loadApplicants() {
@@ -154,9 +158,56 @@ export default function OpportunityApplicationsPage({ params }: { params: { id: 
               key={applicant.id}
               applicant={applicant}
               onStatusUpdate={handleStatusUpdate}
+              isPremium={isPremium}
             />
           ))}
         </div>
+
+        {!isPremium && applicants.length > 0 && (
+          <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Unlock Full Candidate Profiles
+                </h3>
+                <p className="text-gray-700 mb-4">
+                  You're seeing anonymized candidates. Upgrade to Premium to:
+                </p>
+                <ul className="space-y-2 mb-4">
+                  <li className="flex items-center gap-2 text-gray-700">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    View full names and contact information
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-700">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Access detailed talent profiles and work history
+                  </li>
+                  <li className="flex items-center gap-2 text-gray-700">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Post opportunities visible to all verified users
+                  </li>
+                </ul>
+                <button
+                  onClick={() => router.push('/subscription/plans')}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Upgrade to Premium
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

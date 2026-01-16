@@ -60,7 +60,7 @@ class APIClient {
     return this.token;
   }
 
-  private async request<T>(
+  private async makeRequest<T>(
     method: string,
     path: string,
     body?: any
@@ -116,6 +116,11 @@ class APIClient {
     }
   }
 
+  // Public request method for custom endpoints
+  async request<T>(method: string, path: string, body?: any): Promise<T> {
+    return this.makeRequest<T>(method, path, body);
+  }
+
   // Opportunities API
   async getOpportunityFeed(params?: {
     page?: number;
@@ -130,14 +135,14 @@ class APIClient {
     if (params?.status) query.set('status', params.status);
 
     const queryString = query.toString();
-    return this.request<OpportunityFeedResponse>(
+    return this.makeRequest<OpportunityFeedResponse>(
       'GET',
       `/api/opportunities/feed${queryString ? `?${queryString}` : ''}`
     );
   }
 
   async getOpportunityDetail(id: string): Promise<OpportunityDetailResponse> {
-    return this.request<OpportunityDetailResponse>(
+    return this.makeRequest<OpportunityDetailResponse>(
       'GET',
       `/api/opportunities/${id}`
     );
@@ -148,7 +153,7 @@ class APIClient {
     opportunityId: string,
     data: ApplicationSubmitRequest
   ): Promise<ApplicationSubmitResponse> {
-    return this.request<ApplicationSubmitResponse>(
+    return this.makeRequest<ApplicationSubmitResponse>(
       'POST',
       `/api/opportunities/${opportunityId}/apply`,
       data
@@ -166,21 +171,21 @@ class APIClient {
     if (params?.status) query.set('status', params.status);
 
     const queryString = query.toString();
-    return this.request<MyApplicationsResponse>(
+    return this.makeRequest<MyApplicationsResponse>(
       'GET',
       `/api/applications/my-applications${queryString ? `?${queryString}` : ''}`
     );
   }
 
   async getApplicationDetail(id: string): Promise<ApplicationDetailResponse> {
-    return this.request<ApplicationDetailResponse>(
+    return this.makeRequest<ApplicationDetailResponse>(
       'GET',
       `/api/applications/${id}`
     );
   }
 
   async withdrawApplication(id: string): Promise<ApplicationWithdrawResponse> {
-    return this.request<ApplicationWithdrawResponse>(
+    return this.makeRequest<ApplicationWithdrawResponse>(
       'PUT',
       `/api/applications/${id}/withdraw`
     );
@@ -190,7 +195,7 @@ class APIClient {
     id: string,
     data: ApplicationStatusUpdateRequest
   ): Promise<ApplicationStatusUpdateResponse> {
-    return this.request<ApplicationStatusUpdateResponse>(
+    return this.makeRequest<ApplicationStatusUpdateResponse>(
       'PUT',
       `/api/applications/${id}/status`,
       data
@@ -211,7 +216,7 @@ class APIClient {
     if (params?.status) query.set('status', params.status);
 
     const queryString = query.toString();
-    return this.request<OpportunityApplicationsResponse>(
+    return this.makeRequest<OpportunityApplicationsResponse>(
       'GET',
       `/api/opportunities/${opportunityId}/applications${queryString ? `?${queryString}` : ''}`
     );
