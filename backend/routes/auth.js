@@ -47,7 +47,7 @@ router.post('/signup', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
@@ -74,7 +74,7 @@ router.post('/signup', async (req, res) => {
     );
 
     // Send verification email
-    await sendVerificationEmail(email, token);
+    // await sendVerificationEmail(email, token);
 
     // Audit log signup
     await logAudit({
