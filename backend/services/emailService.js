@@ -1,4 +1,4 @@
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 
 const sesClient = new SESClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -11,7 +11,7 @@ const sesClient = new SESClient({
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@latap.com';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-export const sendVerificationEmail = async (email, token) => {
+const sendVerificationEmail = async (email, token) => {
   const verificationUrl = `${FRONTEND_URL}/verify-email?token=${token}`;
   
   const params = {
@@ -95,3 +95,5 @@ The LATAP Team
     throw new Error('Failed to send verification email');
   }
 };
+
+module.exports = { sendVerificationEmail };

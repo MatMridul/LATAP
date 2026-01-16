@@ -250,4 +250,4 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

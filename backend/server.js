@@ -177,75 +177,7 @@ const extractTenant = async (req, res, next) => {
   }
 };
 
-// Enhanced auth middleware with Redis session management
-const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
-    }
-    
-    // Check if token is blacklisted (if Redis available)
-    let isBlacklisted = false;
-    if (redis) {
-      try {
-        isBlacklisted = await redis.get(`blacklist:${token}`);
-      } catch (err) {
-        console.warn('Redis blacklist check failed:', err.message);
-      }
-    }
-    if (isBlacklisted) {
-      return res.status(401).json({ error: 'Token has been revoked' });
-    }
-    
-    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
-      if (err) {
-        return res.status(403).json({ error: 'Invalid or expired token' });
-      }
-      
-      // Get user info from cache or database
-      const cacheKey = `user:${decoded.userId}`;
-      let user = null;
-      
-      if (redis) {
-        try {
-          user = await redis.get(cacheKey);
-        } catch (err) {
-          console.warn('Redis user cache read failed:', err.message);
-        }
-      }
-      
-      if (!user) {
-        const result = await pool.query(
-          'SELECT * FROM users WHERE id = $1 AND institution_id = $2',
-          [decoded.userId, decoded.institutionId]
-        );
-        
-        if (result.rows.length === 0) {
-          return res.status(401).json({ error: 'User not found' });
-        }
-        
-        user = JSON.stringify(result.rows[0]);
-        
-        if (redis) {
-          try {
-            await redis.setex(cacheKey, 600, user); // Cache for 10 minutes
-          } catch (err) {
-            console.warn('Redis user cache write failed:', err.message);
-          }
-        }
-      }
-      
-      req.user = JSON.parse(user);
-      next();
-    });
-  } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
+// Legacy routes below use old authentication - to be migrated
 
 // Input validation middleware
 const validateLogin = [
