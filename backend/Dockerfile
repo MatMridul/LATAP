@@ -1,45 +1,45 @@
-# Multi-stage build for production optimization
-FROM node:18-alpine AS base
+# Multi-stage build for AWS ECS optimization
+FROM node:20-alpine AS builder
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
 
-# Development stage
-FROM base AS dev
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-EXPOSE 3001
-CMD ["npm", "run", "dev"]
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
 
-# Production build stage
-FROM base AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
+# Production stage
+FROM node:20-alpine
 
-# Production runtime stage
-FROM base AS runner
+# Install dumb-init for proper signal handling in containers
+RUN apk add --no-cache dumb-init curl
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
 WORKDIR /app
 
-ENV NODE_ENV=production
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nodejs
+# Copy dependencies from builder
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app ./
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy application code
+COPY --chown=nodejs:nodejs . .
 
+# Switch to non-root user
 USER nodejs
-EXPOSE 3001
-ENV PORT 3001
 
+# Expose port
+EXPOSE 3001
+
+# Health check for ECS
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3001/health/liveness || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
 CMD ["node", "server.js"]
