@@ -4,6 +4,9 @@
 const express = require('express');
 const { getPool } = require('../config/database');
 const { authenticateToken, logAudit, isValidUUID } = require('../middleware/identityAuth');
+const { AppError } = require('../utils/errors');
+const { logger, ACTION_TYPES } = require('../utils/structuredLogger');
+const metrics = require('../utils/metrics');
 
 const router = express.Router();
 const pool = getPool();
@@ -12,7 +15,7 @@ const pool = getPool();
  * GET /api/applications/my-applications
  * Get user's submitted applications
  */
-router.get('/my-applications', authenticateToken, async (req, res) => {
+router.get('/my-applications', authenticateToken, async (req, res, next) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
@@ -60,8 +63,17 @@ router.get('/my-applications', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('My applications error:', error);
-    res.status(500).json({ error: 'Failed to fetch applications' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/applications'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application listing service temporarily unavailable', { request_id }));
   }
 });
 
@@ -69,7 +81,7 @@ router.get('/my-applications', authenticateToken, async (req, res) => {
  * GET /api/applications/:id
  * Get single application details
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
   try {
     if (!isValidUUID(req.params.id)) {
       return res.status(400).json({ error: 'Invalid application ID' });
@@ -94,8 +106,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json({ application: result.rows[0] });
 
   } catch (error) {
-    console.error('Get application error:', error);
-    res.status(500).json({ error: 'Failed to fetch application' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/applications/:id'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application detail service temporarily unavailable', { request_id }));
   }
 });
 
@@ -103,7 +124,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * PUT /api/applications/:id/withdraw
  * Withdraw application
  */
-router.put('/:id/withdraw', authenticateToken, async (req, res) => {
+router.put('/:id/withdraw', authenticateToken, async (req, res, next) => {
   const client = await pool.connect();
   
   try {
@@ -172,8 +193,17 @@ router.put('/:id/withdraw', authenticateToken, async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Withdraw application error:', error);
-    res.status(500).json({ error: 'Failed to withdraw application' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'DELETE /api/applications/:id'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application withdrawal service temporarily unavailable', { request_id }));
   } finally {
     client.release();
   }
@@ -183,7 +213,7 @@ router.put('/:id/withdraw', authenticateToken, async (req, res) => {
  * PUT /api/applications/:id/status
  * Update application status (opportunity owner only)
  */
-router.put('/:id/status', authenticateToken, async (req, res) => {
+router.put('/:id/status', authenticateToken, async (req, res, next) => {
   const client = await pool.connect();
   
   try {
@@ -254,8 +284,17 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Update status error:', error);
-    res.status(500).json({ error: 'Failed to update application status' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'PUT /api/applications/:id/status'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application status update service temporarily unavailable', { request_id }));
   } finally {
     client.release();
   }

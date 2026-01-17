@@ -8,6 +8,9 @@ const { authenticateToken, logAudit, isValidUUID, getUserInstitutions } = requir
 const { canPostOpportunity, canApply, incrementUsage, getActiveSubscription } = require('../middleware/subscription');
 const MatchingEngine = require('../services/matchingEngine');
 const { uploadDocument, deleteDocument } = require('../services/s3Service');
+const { AppError } = require('../utils/errors');
+const { logger, ACTION_TYPES } = require('../utils/structuredLogger');
+const metrics = require('../utils/metrics');
 
 const router = express.Router();
 const pool = getPool();
@@ -16,7 +19,7 @@ const pool = getPool();
  * POST /api/opportunities
  * Create new opportunity
  */
-router.post('/', authenticateToken, canPostOpportunity, async (req, res) => {
+router.post('/', authenticateToken, canPostOpportunity, async (req, res, next) => {
   const client = await pool.connect();
   
   try {
@@ -82,8 +85,17 @@ router.post('/', authenticateToken, canPostOpportunity, async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Create opportunity error:', error);
-    res.status(500).json({ error: 'Failed to create opportunity' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'POST /api/opportunities'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Opportunity creation service temporarily unavailable', { request_id }));
   } finally {
     client.release();
   }
@@ -93,7 +105,7 @@ router.post('/', authenticateToken, canPostOpportunity, async (req, res) => {
  * GET /api/opportunities/feed
  * Get institution-scoped opportunity feed
  */
-router.get('/feed', authenticateToken, async (req, res) => {
+router.get('/feed', authenticateToken, async (req, res, next) => {
   try {
     const { page = 1, limit = 20, type, location, remote_only } = req.query;
     const offset = (page - 1) * limit;
@@ -179,8 +191,17 @@ router.get('/feed', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Feed error:', error);
-    res.status(500).json({ error: 'Failed to fetch opportunities' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'FEED_FETCH_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/opportunities/feed'
+      }
+    });
+    return next(new AppError('FEED_FETCH_FAILED', 'Opportunity feed service temporarily unavailable', { request_id }));
   }
 });
 
@@ -188,7 +209,7 @@ router.get('/feed', authenticateToken, async (req, res) => {
  * GET /api/opportunities/:id
  * Get single opportunity with access control
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
   try {
     if (!isValidUUID(req.params.id)) {
       return res.status(400).json({ error: 'Invalid opportunity ID' });
@@ -237,8 +258,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json({ opportunity: result.rows[0] });
 
   } catch (error) {
-    console.error('Get opportunity error:', error);
-    res.status(500).json({ error: 'Failed to fetch opportunity' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'OPPORTUNITY_FETCH_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/opportunities/:id'
+      }
+    });
+    return next(new AppError('OPPORTUNITY_FETCH_FAILED', 'Opportunity service temporarily unavailable', { request_id }));
   }
 });
 
@@ -246,7 +276,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * POST /api/opportunities/:id/apply
  * Apply to opportunity with comprehensive edge case handling
  */
-router.post('/:id/apply', authenticateToken, canApply, async (req, res) => {
+router.post('/:id/apply', authenticateToken, canApply, async (req, res, next) => {
   const client = await pool.connect();
   
   try {
@@ -390,8 +420,17 @@ router.post('/:id/apply', authenticateToken, canApply, async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Apply error:', error);
-    res.status(500).json({ error: 'Failed to submit application' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'POST /api/opportunities/:id/apply'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application service temporarily unavailable', { request_id }));
   } finally {
     client.release();
   }
@@ -401,7 +440,7 @@ router.post('/:id/apply', authenticateToken, canApply, async (req, res) => {
  * GET /api/opportunities/my-posts
  * Get user's posted opportunities
  */
-router.get('/my-posts', authenticateToken, async (req, res) => {
+router.get('/my-posts', authenticateToken, async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT o.*, i.name as institution_name
@@ -414,8 +453,17 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
     res.json({ opportunities: result.rows });
 
   } catch (error) {
-    console.error('My posts error:', error);
-    res.status(500).json({ error: 'Failed to fetch opportunities' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/opportunities/my-posts'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Opportunity listing service temporarily unavailable', { request_id }));
   }
 });
 
@@ -423,7 +471,7 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
  * GET /api/opportunities/:id/applications
  * Get applications for posted opportunity (owner only)
  */
-router.get('/:id/applications', authenticateToken, async (req, res) => {
+router.get('/:id/applications', authenticateToken, async (req, res, next) => {
   try {
     if (!isValidUUID(req.params.id)) {
       return res.status(400).json({ error: 'Invalid opportunity ID' });
@@ -458,8 +506,17 @@ router.get('/:id/applications', authenticateToken, async (req, res) => {
     res.json({ applications: result.rows });
 
   } catch (error) {
-    console.error('Get applications error:', error);
-    res.status(500).json({ error: 'Failed to fetch applications' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        endpoint: 'GET /api/opportunities/:id/applications'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application listing service temporarily unavailable', { request_id }));
   }
 });
 
