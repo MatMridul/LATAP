@@ -211,10 +211,11 @@ router.post('/login', async (req, res, next) => {
     }
 
     // Check if email is verified
-    if (!user.is_email_verified) {
-      metrics.increment('auth_failures_total');
-      return next(new AppError('EMAIL_NOT_VERIFIED', 'Please verify your email before logging in', { request_id }));
-    }
+    // TODO: Re-enable when AWS SES is configured
+    // if (!user.is_email_verified) {
+    //   metrics.increment('auth_failures_total');
+    //   return next(new AppError('EMAIL_NOT_VERIFIED', 'Please verify your email before logging in', { request_id }));
+    // }
 
     // Generate JWT token with user_id ONLY
     const token = generateToken(user.id);
