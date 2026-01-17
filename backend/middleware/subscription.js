@@ -57,8 +57,17 @@ async function requirePremium(req, res, next) {
     req.subscription = subscription;
     next();
   } catch (error) {
-    console.error('Subscription check failed:', error);
-    res.status(500).json({ error: 'Failed to verify subscription' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        middleware: 'getActiveSubscription'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Subscription verification service temporarily unavailable', { request_id }));
   }
 }
 
@@ -90,8 +99,17 @@ async function canPostOpportunity(req, res, next) {
     req.subscription = subscription;
     next();
   } catch (error) {
-    console.error('Opportunity posting check failed:', error);
-    res.status(500).json({ error: 'Failed to verify posting permissions' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        middleware: 'canPostOpportunity'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Posting permission verification service temporarily unavailable', { request_id }));
   }
 }
 
@@ -116,8 +134,17 @@ async function canApply(req, res, next) {
     req.subscription = subscription;
     next();
   } catch (error) {
-    console.error('Application check failed:', error);
-    res.status(500).json({ error: 'Failed to verify application permissions' });
+    const request_id = req.context?.request_id;
+    logger.error(ACTION_TYPES.DATABASE_ERROR, {
+      request_id,
+      error_code: 'DATABASE_CONNECTION_FAILED',
+      metadata: { 
+        error: error.message, 
+        stack: error.stack,
+        middleware: 'canApply'
+      }
+    });
+    return next(new AppError('DATABASE_CONNECTION_FAILED', 'Application permission verification service temporarily unavailable', { request_id }));
   }
 }
 
