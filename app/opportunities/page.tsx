@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiClient, APIError } from '../lib/apiClient';
 import { handleAPIError } from '../lib/errorHandler';
 import type { OpportunityCard } from '../types/api';
-import { ProtectedRoute } from '../components/VerificationGate';
+import { useAuth } from '../contexts/AuthContext';
 import OpportunityCardComponent from '../components/OpportunityCard';
 import OpportunityFeedSkeleton from '../components/OpportunityFeedSkeleton';
 import EmptyState from '../components/EmptyState';
@@ -13,6 +14,7 @@ import ErrorBanner from '../components/ErrorBanner';
 
 export default function OpportunitiesPage() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [opportunities, setOpportunities] = useState<OpportunityCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +60,38 @@ export default function OpportunitiesPage() {
 
   if (loading && opportunities.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">
+      <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+        {/* Navigation */}
+        <nav className="nav-primary">
+          <div className="nav-container">
+            <Link href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Opportunities</div>
+              </div>
+            </Link>
+            <div className="nav-actions">
+              <Link href="/dashboard" className="btn btn-ghost btn-sm">
+                Dashboard
+              </Link>
+              <button 
+                onClick={logout}
+                className="btn btn-ghost btn-sm"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div className="container" style={{ padding: '2rem 1rem' }}>
+          <h1 style={{ 
+            fontSize: '2rem', 
+            fontWeight: 'bold', 
+            color: 'var(--text-primary)', 
+            marginBottom: '2rem' 
+          }}>
             Opportunities
           </h1>
           <OpportunityFeedSkeleton count={20} />
@@ -71,18 +102,48 @@ export default function OpportunitiesPage() {
 
   if (error && errorAction?.type === 'banner') {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+        {/* Navigation */}
+        <nav className="nav-primary">
+          <div className="nav-container">
+            <Link href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Opportunities</div>
+              </div>
+            </Link>
+            <div className="nav-actions">
+              <Link href="/dashboard" className="btn btn-ghost btn-sm">
+                Dashboard
+              </Link>
+              <button 
+                onClick={logout}
+                className="btn btn-ghost btn-sm"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div className="container" style={{ padding: '2rem 1rem' }}>
           <ErrorBanner
             message={error}
             ctaText={errorAction.ctaText}
             ctaAction={errorAction.ctaAction}
           />
-          <h1 className="text-3xl font-bold text-gray-900 mb-8 mt-4">
+          <h1 style={{ 
+            fontSize: '2rem', 
+            fontWeight: 'bold', 
+            color: 'var(--text-primary)', 
+            marginBottom: '2rem',
+            marginTop: '1rem'
+          }}>
             Opportunities
           </h1>
           {opportunities.length > 0 && (
-            <div className="space-y-4">
+            <div style={{ display: 'grid', gap: '1rem' }}>
               {opportunities.map((opp) => (
                 <OpportunityCardComponent key={opp.id} opportunity={opp} />
               ))}
@@ -95,15 +156,46 @@ export default function OpportunitiesPage() {
 
   if (opportunities.length === 0 && !loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">
+      <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+        {/* Navigation */}
+        <nav className="nav-primary">
+          <div className="nav-container">
+            <Link href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Opportunities</div>
+              </div>
+            </Link>
+            <div className="nav-actions">
+              <Link href="/dashboard" className="btn btn-ghost btn-sm">
+                Dashboard
+              </Link>
+              <button 
+                onClick={logout}
+                className="btn btn-ghost btn-sm"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div className="container" style={{ padding: '2rem 1rem' }}>
+          <h1 style={{ 
+            fontSize: '2rem', 
+            fontWeight: 'bold', 
+            color: 'var(--text-primary)', 
+            marginBottom: '2rem' 
+          }}>
             Opportunities
           </h1>
           <EmptyState
             icon="briefcase"
             title="No opportunities available"
-            message="Check back soon or adjust your filters"
+            message="Check back later for new opportunities or create your own."
+            ctaText="Create Opportunity"
+            ctaAction={() => router.push('/opportunities/create')}
           />
         </div>
       </div>
@@ -111,64 +203,94 @@ export default function OpportunitiesPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <header className="nav-primary">
+    <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+      {/* Navigation */}
+      <nav className="nav-primary">
         <div className="nav-container">
-          <a href="/" className="nav-brand">
+          <Link href="/" className="nav-brand">
             <div className="nav-logo">L</div>
             <div>
               <div className="nav-title">LATAP</div>
-              <div className="nav-subtitle">Alumni Talent Network</div>
+              <div className="nav-subtitle">Opportunities</div>
             </div>
-          </a>
+          </Link>
+          <div className="nav-actions">
+            <Link href="/dashboard" className="btn btn-ghost btn-sm">
+              Dashboard
+            </Link>
+            <button 
+              onClick={logout}
+              className="btn btn-ghost btn-sm"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
-      </header>
+      </nav>
       
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {error && errorAction?.type === 'banner' && (
-            <ErrorBanner
-              message={error}
-              ctaText={errorAction.ctaText}
-              ctaAction={errorAction.ctaAction}
-            />
-          )}
-          
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Opportunities
-            </h1>
-            <p className="text-sm text-gray-600">
-              {total} {total === 1 ? 'opportunity' : 'opportunities'} found
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {opportunities.map((opp) => (
-              <OpportunityCardComponent key={opp.id} opportunity={opp} />
-            ))}
-          </div>
-
-          {hasMore && (
-            <div className="mt-8 flex justify-center">
-              <button
-                onClick={() => setPage(page + 1)}
-                disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
+      <div className="container" style={{ padding: '2rem 1rem' }}>
+        {error && errorAction?.type === 'banner' && (
+          <ErrorBanner
+            message={error}
+            ctaText={errorAction.ctaText}
+            ctaAction={errorAction.ctaAction}
+          />
+        )}
+        
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '2rem' 
+        }}>
+          <h1 style={{ 
+            fontSize: '2rem', 
+            fontWeight: 'bold', 
+            color: 'var(--text-primary)' 
+          }}>
+            Opportunities
+          </h1>
+          <p style={{ 
+            fontSize: '0.875rem', 
+            color: 'var(--text-muted)' 
+          }}>
+            {total} {total === 1 ? 'opportunity' : 'opportunities'} found
+          </p>
         </div>
 
-        {/* Footer */}
-        <footer className="mt-16 py-8 text-center">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            © 2026 Infinitra Innovations. All rights reserved.
-          </p>
-        </footer>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          {opportunities.map((opp) => (
+            <OpportunityCardComponent key={opp.id} opportunity={opp} />
+          ))}
+        </div>
+
+        {hasMore && (
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <button
+              onClick={() => setPage(prev => prev + 1)}
+              disabled={loading}
+              className="btn btn-primary"
+            >
+              {loading ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )}
       </div>
-    </ProtectedRoute>
+
+      {/* Footer */}
+      <footer style={{
+        padding: '2rem 0',
+        textAlign: 'center',
+        borderTop: '1px solid var(--surface-200)',
+        background: 'var(--white)'
+      }}>
+        <p style={{
+          fontSize: '0.875rem',
+          color: 'var(--text-muted)'
+        }}>
+          © 2026 Infinitra Innovations. All rights reserved.
+        </p>
+      </footer>
+    </div>
   );
 }
