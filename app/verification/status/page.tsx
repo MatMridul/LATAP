@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function VerificationStatus() {
   const router = useRouter()
+  const { logout } = useAuth()
   const [requestId, setRequestId] = useState<string | null>(null)
   const [status, setStatus] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -32,8 +34,27 @@ export default function VerificationStatus() {
 
   const fetchStatus = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/verification/status/${id}`)
+      const token = localStorage.getItem('token')
+      if (!token) {
+        router.push('/login')
+        return
+      }
+      
+      const response = await fetch(`http://localhost:3001/api/verification/status/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await response.json()
+      
+      if (response.status === 401) {
+        // Token is invalid, redirect to login
+        localStorage.removeItem('token')
+        localStorage.removeItem('userData')
+        router.push('/login')
+        return
+      }
       
       if (response.ok) {
         setStatus(data)
@@ -70,9 +91,13 @@ export default function VerificationStatus() {
 
     setSubmittingAppeal(true)
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`http://localhost:3001/api/verification/appeal/${requestId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ reason: appealReason })
       })
 
@@ -123,21 +148,42 @@ export default function VerificationStatus() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh' }}>
-        <header className="header">
-          <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Link href="/" style={{ textDecoration: 'none' }}>
-              <h1>LATAP</h1>
+      <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+        <header className="nav-primary">
+          <div className="nav-container">
+            <Link href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Digital Talent Network</div>
+              </div>
             </Link>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>
-              Verification Status
+            <div className="nav-actions">
+              <div className="status-badge status-pending" style={{ marginRight: '1rem' }}>
+                Loading Status
+              </div>
+              <button 
+                onClick={logout}
+                className="btn btn-ghost btn-sm"
+                style={{ marginLeft: '1rem' }}
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </header>
         <main className="container" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
-          <div className="card" style={{ maxWidth: '400px', margin: '0 auto' }}>
+          <div style={{ 
+            background: 'var(--white)', 
+            borderRadius: '16px', 
+            padding: '3rem', 
+            border: '1px solid var(--surface-200)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            maxWidth: '400px', 
+            margin: '0 auto' 
+          }}>
             <div className="loading-spinner" style={{ margin: '2rem auto' }}></div>
-            <p style={{ color: '#64748b' }}>Loading verification status...</p>
+            <p style={{ color: 'var(--text-muted)' }}>Loading verification status...</p>
           </div>
         </main>
       </div>
@@ -145,21 +191,40 @@ export default function VerificationStatus() {
   }
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <header className="header">
-        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <h1>LATAP</h1>
+    <div style={{ minHeight: '100vh', background: 'var(--surface-50)' }}>
+      <header className="nav-primary">
+        <div className="nav-container">
+          <Link href="/" className="nav-brand">
+            <div className="nav-logo">L</div>
+            <div>
+              <div className="nav-title">LATAP</div>
+              <div className="nav-subtitle">Digital Talent Network</div>
+            </div>
           </Link>
-          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>
-            Verification Status & Results
+          <div className="nav-actions">
+            <div className="status-badge status-pending" style={{ marginRight: '1rem' }}>
+              Verification Status
+            </div>
+            <button 
+              onClick={logout}
+              className="btn btn-ghost btn-sm"
+              style={{ marginLeft: '1rem' }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
 
       <main className="container" style={{ padding: '3rem 1rem' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <div className="card animate-fade-in-up">
+          <div style={{ 
+            background: 'var(--white)', 
+            borderRadius: '16px', 
+            padding: '3rem', 
+            border: '1px solid var(--surface-200)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+          }}>
             {/* Status Header */}
             <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
               <div style={{ 
@@ -171,45 +236,50 @@ export default function VerificationStatus() {
               </div>
               <h2 style={{ 
                 fontSize: '2.5rem',
-                background: getStatusGradient(status?.status),
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                color: 'var(--text-primary)',
                 marginBottom: '0.5rem'
               }}>
                 {status?.status?.replace('_', ' ')}
               </h2>
               <div style={{ 
-                background: 'rgba(100, 116, 139, 0.1)',
+                background: 'var(--surface-100)',
                 padding: '0.5rem 1rem',
                 borderRadius: '2rem',
                 display: 'inline-block',
                 fontSize: '0.9rem',
-                color: '#64748b'
+                color: 'var(--text-muted)'
               }}>
                 Request ID: {requestId}
               </div>
             </div>
 
             {error && (
-              <div className="alert alert-error" style={{ marginBottom: '2rem' }}>
+              <div style={{ 
+                background: 'var(--error-50)', 
+                border: '1px solid var(--error-200)', 
+                borderRadius: '12px', 
+                padding: '1rem', 
+                marginBottom: '2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
                 <div style={{ 
                   width: '24px', 
                   height: '24px', 
                   borderRadius: '50%', 
-                  background: 'var(--warning-100)', 
+                  background: 'var(--error-100)', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
                   marginRight: '0.5rem'
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning-600)" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--error-600)" strokeWidth="2">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                     <line x1="12" y1="9" x2="12" y2="13"/>
                     <line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
                 </div>
-                {error}
+                <span style={{ color: 'var(--error-700)' }}>{error}</span>
               </div>
             )}
 
@@ -221,69 +291,72 @@ export default function VerificationStatus() {
                     marginBottom: '1.5rem',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem'
+                    gap: '0.5rem',
+                    color: 'var(--text-primary)',
+                    fontSize: '1.25rem',
+                    fontWeight: '600'
                   }}>
                     <span>📊</span> Verification Details
                   </h3>
-                  <div className="grid grid-2" style={{ gap: '1.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
                     <div style={{ 
-                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                      background: 'var(--surface-50)',
                       padding: '1.5rem',
-                      borderRadius: '1rem',
-                      border: '1px solid rgba(102, 126, 234, 0.2)'
+                      borderRadius: '12px',
+                      border: '1px solid var(--surface-200)'
                     }}>
-                      <div style={{ fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                      <div style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                         📈 Total Attempts
                       </div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#667eea' }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-600)' }}>
                         {status.totalAttempts}
                       </div>
                     </div>
                     <div style={{ 
-                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                      background: 'var(--surface-50)',
                       padding: '1.5rem',
-                      borderRadius: '1rem',
-                      border: '1px solid rgba(16, 185, 129, 0.2)'
+                      borderRadius: '12px',
+                      border: '1px solid var(--surface-200)'
                     }}>
-                      <div style={{ fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
-                        <div className="text-sm font-medium text-secondary">Submitted</div>
+                      <div style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                        📅 Submitted
                       </div>
-                      <div style={{ fontSize: '1rem', fontWeight: '600', color: '#10b981' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--success-600)' }}>
                         {new Date(status.createdAt).toLocaleDateString()}
                       </div>
-                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                         {new Date(status.createdAt).toLocaleTimeString()}
                       </div>
                     </div>
                     {status.lastAttempt && (
                       <>
                         <div style={{ 
-                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                          background: 'var(--surface-50)',
                           padding: '1.5rem',
-                          borderRadius: '1rem',
-                          border: '1px solid rgba(245, 158, 11, 0.2)'
+                          borderRadius: '12px',
+                          border: '1px solid var(--surface-200)'
                         }}>
-                          <div style={{ fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                          <div style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                             🕒 Last Updated
                           </div>
-                          <div style={{ fontSize: '1rem', fontWeight: '600', color: '#f59e0b' }}>
+                          <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--warning-600)' }}>
                             {new Date(status.lastAttempt.completedAt).toLocaleDateString()}
                           </div>
-                          <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                             {new Date(status.lastAttempt.completedAt).toLocaleTimeString()}
                           </div>
                         </div>
                         {status.lastAttempt.failureReason && (
                           <div style={{ 
-                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
+                            background: 'var(--error-50)',
                             padding: '1.5rem',
-                            borderRadius: '1rem',
-                            border: '1px solid rgba(239, 68, 68, 0.2)'
+                            borderRadius: '12px',
+                            border: '1px solid var(--error-200)'
                           }}>
-                            <div style={{ fontWeight: '600', color: '#374151', marginBottom: '0.5rem' }}>
+                            <div style={{ fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                               ❌ Failure Reason
                             </div>
-                            <div style={{ fontSize: '0.9rem', color: '#ef4444' }}>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--error-600)' }}>
                               {status.lastAttempt.failureReason}
                             </div>
                           </div>

@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setToken(null)
     localStorage.removeItem('auth_token')
-    router.push('/login')
+    router.push('/')
   }
 
   return (

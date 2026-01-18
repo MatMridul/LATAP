@@ -35,7 +35,7 @@ const magneticVariants = {
   hover: { 
     scale: 1.05,
     transition: {
-      type: "spring",
+      type: "spring" as const,
       stiffness: 400,
       damping: 10
     }
@@ -48,13 +48,13 @@ const floatingVariants = {
     transition: {
       duration: 6,
       repeat: Infinity,
-      ease: "easeInOut"
+      ease: "easeInOut" as const
     }
   }
 };
 
 // Typewriter component
-const TypewriterText = ({ text, delay = 0 }) => {
+const TypewriterText = ({ text, delay = 0 }: { text: string; delay?: number }) => {
   const [displayText, setDisplayText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -184,7 +184,7 @@ export default function Home() {
             <motion.div variants={itemVariants} style={{ marginBottom: '2rem' }}>
               <div style={{ 
                 marginBottom: '2rem',
-                color: 'var(--primary)',
+                color: 'var(--text-primary)',
                 fontSize: '0.9rem',
                 fontWeight: 'bold',
                 display: 'flex',
@@ -227,6 +227,14 @@ export default function Home() {
                 marginBottom: '3rem',
                 maxWidth: '600px',
                 margin: '0 auto 3rem'
+              }}
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ 
+                duration: 0.6, 
+                delay: 0.2,
+                ease: [0.4, 0, 0.2, 1]
               }}
             >
               Connect verified professionals through India's Digital Public Infrastructure. 
@@ -293,8 +301,32 @@ export default function Home() {
                 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <div className="text-2xl font-bold text-primary">99.8%</div>
-                <div className="text-sm text-muted">Verification Accuracy</div>
+                <motion.div 
+                  className="text-2xl font-bold text-primary"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.1,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  99.8%
+                </motion.div>
+                <motion.div 
+                  className="text-sm text-muted"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.2,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  Verification Accuracy
+                </motion.div>
               </motion.div>
               <motion.div 
                 style={{ textAlign: 'center' }}
@@ -305,8 +337,32 @@ export default function Home() {
                 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <div className="text-2xl font-bold text-primary">2min</div>
-                <div className="text-sm text-muted">Average Processing</div>
+                <motion.div 
+                  className="text-2xl font-bold text-primary"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.3,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  2min
+                </motion.div>
+                <motion.div 
+                  className="text-sm text-muted"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.4,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  Average Processing
+                </motion.div>
               </motion.div>
               <motion.div 
                 style={{ textAlign: 'center' }}
@@ -317,8 +373,32 @@ export default function Home() {
                 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <div className="text-2xl font-bold text-primary">500K+</div>
-                <div className="text-sm text-muted">Verified Profiles</div>
+                <motion.div 
+                  className="text-2xl font-bold text-primary"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.5,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  500K+
+                </motion.div>
+                <motion.div 
+                  className="text-sm text-muted"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.6,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  Verified Profiles
+                </motion.div>
               </motion.div>
               <motion.div 
                 style={{ textAlign: 'center' }}
@@ -329,8 +409,32 @@ export default function Home() {
                 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <div className="text-2xl font-bold text-primary">1,200+</div>
-                <div className="text-sm text-muted">Partner Institutions</div>
+                <motion.div 
+                  className="text-2xl font-bold text-primary"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.7,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  1,200+
+                </motion.div>
+                <motion.div 
+                  className="text-sm text-muted"
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6, 
+                    delay: 0.8,
+                    ease: [0.4, 0, 0.2, 1]
+                  }}
+                >
+                  Partner Institutions
+                </motion.div>
               </motion.div>
             </motion.div>
           </motion.div>
@@ -347,12 +451,33 @@ export default function Home() {
             viewport={{ once: true }}
             style={{ textAlign: 'center', marginBottom: '4rem' }}
           >
-            <h2 className="text-3xl font-semibold text-primary" style={{ marginBottom: '1rem' }}>
+            <motion.h2 
+              className="text-3xl font-semibold text-primary" 
+              style={{ marginBottom: '1rem' }}
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ 
+                duration: 0.6, 
+                delay: 0.1,
+                ease: [0.4, 0, 0.2, 1]
+              }}
+            >
               Verification Excellence
-            </h2>
-            <p className="text-lg text-secondary">
+            </motion.h2>
+            <motion.p 
+              className="text-lg text-secondary"
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ 
+                duration: 0.6, 
+                delay: 0.2,
+                ease: [0.4, 0, 0.2, 1]
+              }}
+            >
               Built for enterprises that demand the highest standards
-            </p>
+            </motion.p>
           </motion.div>
 
           <div className="grid grid-3">
@@ -414,7 +539,7 @@ export default function Home() {
       <footer className="mt-32 py-8 border-t border-navy-800/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-navy-600 text-sm">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               © 2026 Infinitra Innovations. All rights reserved.
             </p>
           </div>

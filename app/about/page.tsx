@@ -210,6 +210,13 @@ export default function About() {
               </div>
             </div>
           </div>
+
+          {/* Footer */}
+          <footer className="mt-16 py-8 text-center">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              © 2026 Infinitra Innovations. All rights reserved.
+            </p>
+          </footer>
         </div>
       </main>
     </div>

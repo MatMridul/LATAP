@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface UploadedFile {
   file: File
@@ -14,14 +15,23 @@ interface UploadedFile {
 
 export default function VerificationUpload() {
   const router = useRouter()
+  const { logout } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [isAnimated, setIsAnimated] = useState(false)
+  const [isClicked, setIsClicked] = useState(false)
 
   useEffect(() => {
     setIsAnimated(true)
   }, [])
+
+  const handleUploadClick = () => {
+    setIsClicked(true)
+    fileInputRef.current?.click()
+    // Reset animation after a short delay
+    setTimeout(() => setIsClicked(false), 200)
+  }
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return
@@ -102,6 +112,13 @@ export default function VerificationUpload() {
             <div className="status-badge status-pending">
               Step 3 of 4
             </div>
+            <button 
+              onClick={logout}
+              className="btn btn-ghost btn-sm"
+              style={{ marginLeft: '1rem' }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </nav>
@@ -135,13 +152,17 @@ export default function VerificationUpload() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleUploadClick}
               animate={{
                 borderColor: dragOver ? 'var(--accent-500)' : 'var(--surface-300)',
                 backgroundColor: dragOver ? 'var(--accent-50)' : 'var(--surface-50)',
-                scale: dragOver ? 1.02 : 1
+                scale: isClicked ? 1.05 : (dragOver ? 1.02 : 1)
               }}
-              transition={{ duration: 0.2 }}
+              transition={{ 
+                duration: isClicked ? 0.1 : 0.2,
+                type: isClicked ? "spring" : "tween",
+                stiffness: isClicked ? 500 : 100
+              }}
               style={{
                 padding: '3rem 2rem',
                 border: '2px dashed var(--surface-300)',
@@ -153,9 +174,13 @@ export default function VerificationUpload() {
               <motion.div
                 animate={{
                   backgroundColor: dragOver ? 'var(--accent-100)' : 'var(--surface-200)',
-                  scale: dragOver ? 1.1 : 1
+                  scale: isClicked ? 1.2 : (dragOver ? 1.1 : 1)
                 }}
-                transition={{ duration: 0.2 }}
+                transition={{ 
+                  duration: isClicked ? 0.1 : 0.2,
+                  type: isClicked ? "spring" : "tween",
+                  stiffness: isClicked ? 600 : 100
+                }}
                 style={{
                   width: '80px',
                   height: '80px',

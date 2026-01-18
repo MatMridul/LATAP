@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 
-export default function VerifyEmail() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
@@ -158,5 +158,31 @@ export default function VerifyEmail() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function VerifyEmail() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: 'var(--surface-50)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ 
+          width: '60px', 
+          height: '60px', 
+          border: '3px solid var(--surface-200)',
+          borderTop: '3px solid var(--accent-600)',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        
+        {/* Footer */}
+        <footer style={{ position: 'absolute', bottom: '2rem', textAlign: 'center' }}>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            © 2026 Infinitra Innovations. All rights reserved.
+          </p>
+        </footer>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }

@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, APIError } from '../../lib/apiClient';
 import { handleAPIError } from '../../lib/errorHandler';
 import type { OpportunityDetail, MatchBreakdown } from '../../types/api';
 import ApplyModal from '../../components/ApplyModal';
 
-export default function OpportunityDetailPage({ params }: { params: { id: string } }) {
+export default function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [opportunity, setOpportunity] = useState<OpportunityDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,12 +19,12 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
   useEffect(() => {
     loadOpportunity();
     checkApplicationStatus();
-  }, [params.id]);
+  }, [id]);
 
   async function loadOpportunity() {
     try {
       setLoading(true);
-      const response = await apiClient.getOpportunityDetail(params.id);
+      const response = await apiClient.getOpportunityDetail(id);
       setOpportunity(response.opportunity);
     } catch (err) {
       if (err instanceof APIError) {
@@ -45,7 +46,7 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
     try {
       const response = await apiClient.getMyApplications({ page: 1, limit: 100 });
       const applied = response.applications.some(
-        (app) => app.opportunity_id === params.id
+        (app) => app.opportunity_id === id
       );
       setHasApplied(applied);
     } catch (err) {
@@ -70,42 +71,83 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-            <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+      <>
+        <header className="nav-primary">
+          <div className="nav-container">
+            <a href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Alumni Talent Network</div>
+              </div>
+            </a>
+          </div>
+        </header>
+        
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+              <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error || !opportunity) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <p className="text-red-600">{error || 'Opportunity not found'}</p>
-            <button
-              onClick={() => router.push('/opportunities')}
-              className="mt-4 text-blue-600 hover:text-blue-700"
-            >
-              Back to Opportunities
-            </button>
+      <>
+        <header className="nav-primary">
+          <div className="nav-container">
+            <a href="/" className="nav-brand">
+              <div className="nav-logo">L</div>
+              <div>
+                <div className="nav-title">LATAP</div>
+                <div className="nav-subtitle">Alumni Talent Network</div>
+              </div>
+            </a>
+          </div>
+        </header>
+        
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <p className="text-red-600">{error || 'Opportunity not found'}</p>
+              <button
+                onClick={() => router.push('/opportunities')}
+                className="mt-4 text-blue-600 hover:text-blue-700"
+              >
+                Back to Opportunities
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <header className="nav-primary">
+        <div className="nav-container">
+          <a href="/" className="nav-brand">
+            <div className="nav-logo">L</div>
+            <div>
+              <div className="nav-title">LATAP</div>
+              <div className="nav-subtitle">Alumni Talent Network</div>
+            </div>
+          </a>
+        </div>
+      </header>
+
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => router.push('/opportunities')}
@@ -208,10 +250,11 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
           </div>
         </div>
       </div>
+      </div>
 
       {showApplyModal && (
         <ApplyModal
-          opportunityId={params.id}
+          opportunityId={id}
           opportunityTitle={opportunity.title}
           onClose={() => setShowApplyModal(false)}
           onSuccess={() => {
@@ -220,6 +263,6 @@ export default function OpportunityDetailPage({ params }: { params: { id: string
           }}
         />
       )}
-    </div>
+    </>
   );
 }

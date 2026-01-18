@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
+import ThemeToggle from './components/ThemeToggle'
 
 export const metadata: Metadata = {
-  title: 'LATAP - Localized Alumni & Talent Acquisition Platform',
-  description: 'Digital India-enabled talent platform connecting students, alumni, and hirers',
+  title: 'LATAP - Alumni Talent Network',
+  description: 'Connect verified alumni with opportunities',
 }
 
 export default function RootLayout({
@@ -15,9 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ThemeToggle />
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

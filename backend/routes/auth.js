@@ -291,4 +291,41 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Verification status endpoint - CRITICAL for gate enforcement
+router.get('/verification-status', authenticateToken, async (req, res) => {
+  try {
+    // Check active verification status
+    const verificationResult = await pool.query(`
+      SELECT ui.verified_at, ui.expires_at, ui.is_active
+      FROM user_institutions ui
+      WHERE ui.user_id = $1 AND ui.is_active = TRUE
+      ORDER BY ui.verified_at DESC
+      LIMIT 1
+    `, [req.user.id]);
+
+    if (verificationResult.rows.length === 0) {
+      return res.json({
+        is_verified: false,
+        expires_at: null,
+        days_until_expiry: null
+      });
+    }
+
+    const verification = verificationResult.rows[0];
+    const expiresAt = new Date(verification.expires_at);
+    const now = new Date();
+    const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    res.json({
+      is_verified: verification.is_active && daysUntilExpiry > 0,
+      expires_at: verification.expires_at,
+      days_until_expiry: daysUntilExpiry
+    });
+
+  } catch (error) {
+    console.error('Verification status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
