@@ -201,4 +201,158 @@ router.get('/my-requests', authenticateToken, async (req, res) => {
     }
 });
 
+/**
+ * GET /api/verification/admin/pending
+ * Get pending verification requests for admin review
+ */
+router.get('/admin/pending', authenticateToken, async (req, res) => {
+    try {
+        // TODO: Add admin role check
+        const result = await pool.query(`
+            SELECT 
+                request_id,
+                user_id,
+                claimed_name,
+                claimed_institution,
+                claimed_program,
+                claimed_start_year,
+                claimed_end_year,
+                status,
+                created_at,
+                document_path
+            FROM verification_requests 
+            WHERE status = 'PENDING' OR status = 'MANUAL_REVIEW'
+            ORDER BY created_at ASC
+        `);
+
+        res.json({
+            success: true,
+            pendingRequests: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error fetching pending verification requests:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch pending requests'
+        });
+    }
+});
+
+/**
+ * POST /api/verification/admin/review/:requestId
+ * Admin review of verification request
+ */
+router.post('/admin/review/:requestId', authenticateToken, async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const { decision, notes } = req.body;
+        const admin_user_id = req.user.user_id;
+
+        if (!['APPROVED', 'REJECTED'].includes(decision)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid decision. Must be APPROVED or REJECTED'
+            });
+        }
+
+        // Update the verification request
+        const result = await pool.query(`
+            UPDATE verification_requests 
+            SET 
+                status = $1,
+                reviewed_by = $2,
+                reviewed_at = NOW(),
+                admin_notes = $3,
+                updated_at = NOW()
+            WHERE request_id = $4
+            RETURNING user_id, claimed_name, claimed_institution
+        `, [decision, admin_user_id, notes, requestId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Verification request not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Verification request ${decision.toLowerCase()} successfully`,
+            requestId,
+            decision
+        });
+
+    } catch (error) {
+        console.error('Error reviewing verification request:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to review verification request'
+        });
+    }
+});
+
+/**
+ * POST /api/verification/appeal/:requestId
+ * Appeal a rejected verification request
+ */
+router.post('/appeal/:requestId', authenticateToken, async (req, res) => {
+    try {
+        const { requestId } = req.params;
+        const { reason } = req.body;
+        const user_id = req.user.user_id;
+
+        if (!reason || reason.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Appeal reason is required'
+            });
+        }
+
+        // Check if request exists and belongs to user
+        const requestCheck = await pool.query(`
+            SELECT status FROM verification_requests 
+            WHERE request_id = $1 AND user_id = $2
+        `, [requestId, user_id]);
+
+        if (requestCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Verification request not found'
+            });
+        }
+
+        if (requestCheck.rows[0].status !== 'REJECTED') {
+            return res.status(400).json({
+                success: false,
+                error: 'Only rejected requests can be appealed'
+            });
+        }
+
+        // Update request status to appeal
+        await pool.query(`
+            UPDATE verification_requests 
+            SET 
+                status = 'APPEAL',
+                appeal_reason = $1,
+                appeal_date = NOW(),
+                updated_at = NOW()
+            WHERE request_id = $2
+        `, [reason, requestId]);
+
+        res.json({
+            success: true,
+            message: 'Appeal submitted successfully',
+            requestId
+        });
+
+    } catch (error) {
+        console.error('Error submitting appeal:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to submit appeal'
+        });
+    }
+});
+
 module.exports = router;

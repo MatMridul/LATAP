@@ -622,15 +622,6 @@ app.get('/api/jobs', [extractTenant, authenticateToken], async (req, res) => {
   }
 });
 
-// Verification routes (isolated module)
-try {
-  const verificationRoutes = require('./verification/routes/verification.routes.js');
-  app.use('/api/verification', verificationRoutes);
-  console.log('✅ Verification module loaded');
-} catch (error) {
-  console.warn('⚠️ Verification module not available:', error.message);
-}
-
 // Global error handler (MUST be last)
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
