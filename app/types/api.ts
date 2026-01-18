@@ -71,18 +71,18 @@ export interface OpportunityFeedResponse {
 export interface OpportunityCreateRequest {
   title: string;
   company_name: string;
-  type: OpportunityType;
+  opportunity_type: OpportunityType;
   location: string;
-  remote_ok: boolean;
+  is_remote: boolean;
   description: string;
-  requirements?: string;
-  skills_required: string[];
-  experience_required_min: number;
-  experience_required_max: number;
-  education_required: EducationLevel;
+  job_type: JobType; // Single job type for backend
+  required_skills: string[];
+  min_experience: number;
+  max_experience: number;
+  required_degree: EducationLevel;
   salary_min?: number | null;
   salary_max?: number | null;
-  job_types: JobType[];
+  currency?: string;
   visibility: OpportunityVisibility;
   expires_at: string; // ISO8601
 }

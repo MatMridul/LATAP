@@ -250,12 +250,17 @@ export default function OpportunitiesPage() {
           }}>
             Opportunities
           </h1>
-          <p style={{ 
-            fontSize: '0.875rem', 
-            color: 'var(--text-muted)' 
-          }}>
-            {total} {total === 1 ? 'opportunity' : 'opportunities'} found
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <p style={{ 
+              fontSize: '0.875rem', 
+              color: 'var(--text-muted)' 
+            }}>
+              {total} {total === 1 ? 'opportunity' : 'opportunities'} found
+            </p>
+            <Link href="/opportunities/create" className="btn btn-primary">
+              Create Opportunity
+            </Link>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: '1rem' }}>

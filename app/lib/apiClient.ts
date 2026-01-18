@@ -4,6 +4,8 @@
 import type {
   OpportunityFeedResponse,
   OpportunityDetailResponse,
+  OpportunityCreateRequest,
+  OpportunityCreateResponse,
   ApplicationSubmitRequest,
   ApplicationSubmitResponse,
   MyApplicationsResponse,
@@ -145,6 +147,14 @@ class APIClient {
     return this.makeRequest<OpportunityDetailResponse>(
       'GET',
       `/api/opportunities/${id}`
+    );
+  }
+
+  async createOpportunity(data: OpportunityCreateRequest): Promise<OpportunityCreateResponse> {
+    return this.makeRequest<OpportunityCreateResponse>(
+      'POST',
+      '/api/opportunities',
+      data
     );
   }
 
