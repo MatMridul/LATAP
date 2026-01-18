@@ -15,7 +15,13 @@ export default function AdminReview() {
 
   const fetchPendingRequests = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/verification/admin/pending')
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:3001/api/verification/admin/pending', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await response.json()
       
       if (response.ok) {
@@ -34,9 +40,13 @@ export default function AdminReview() {
   const handleReview = async (requestId: string, decision: 'APPROVED' | 'REJECTED') => {
     setReviewingId(requestId)
     try {
+      const token = localStorage.getItem('token')
       const response = await fetch(`http://localhost:3001/api/verification/admin/review/${requestId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           decision, 
           notes: `Manual review completed: ${decision}` 

@@ -31,37 +31,12 @@ export default function VerificationPage() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut"
-      }
-    }
+    visible: { opacity: 1, y: 0 }
   };
 
   const magneticVariants = {
     rest: { scale: 1 },
-    hover: { 
-      scale: 1.05,
-      transition: {
-        type: "spring",
-        stiffness: 400,
-        damping: 10
-      }
-    }
-  };
-
-  const floatingVariants = {
-    animate: {
-      y: [-10, 10, -10],
-      transition: {
-        duration: 6,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }
-    }
+    hover: { scale: 1.05 }
   };
 
   const verificationMethods = [
@@ -134,14 +109,26 @@ export default function VerificationPage() {
         <section className="section-lg relative overflow-hidden">
           {/* Floating background elements */}
           <motion.div
-            variants={floatingVariants}
-            animate="animate"
+            animate={{
+              y: [-10, 10, -10],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
             className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-xl"
           />
           <motion.div
-            variants={floatingVariants}
-            animate="animate"
-            style={{ animationDelay: '2s' }}
+            animate={{
+              y: [-10, 10, -10],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
             className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-xl"
           />
           
@@ -347,13 +334,15 @@ export default function VerificationPage() {
                 </motion.p>
               </motion.div>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-                gap: '2rem',
-                marginBottom: '2rem',
-                y: y2
-              }}>
+              <motion.div 
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                  gap: '2rem',
+                  marginBottom: '2rem',
+                  y: y2
+                }}
+              >
                 {verificationMethods.map((method, index) => (
                   <motion.div
                     key={method.id}
@@ -520,7 +509,7 @@ export default function VerificationPage() {
                     </motion.button>
                   </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </motion.div>
           </div>
         </section>
